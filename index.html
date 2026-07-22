@@ -182,6 +182,12 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 <!-- ============ NUEVO TRABAJO ============ -->
 <div class="view on" id="v-nuevo"><div class="wrap">
 
+  <div class="card" id="bannerEdit" style="display:none;border-color:#2f5f8a;background:#132836">
+    <div style="font-weight:700;color:var(--blue);margin-bottom:3px">✎ Editando un trabajo</div>
+    <div class="hint" id="bannerEditTxt" style="color:#bcdcf5"></div>
+    <button class="btn ghost sm" style="margin-top:11px" onclick="cancelarEdicion()">Cancelar y volver</button>
+  </div>
+
   <div class="card">
     <div class="lbl">Fecha</div>
     <div class="row mb">
@@ -211,7 +217,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
     <div class="lbl">Hectáreas</div>
     <div class="stepper">
       <button onclick="bumpHa(-1)">−</button>
-      <input type="number" inputmode="decimal" id="fHa" placeholder="0" oninput="calcAll()">
+      <input type="text" inputmode="decimal" id="fHa" placeholder="0" oninput="calcAll()">
       <button onclick="bumpHa(1)">+</button>
     </div>
     <div class="hint" id="haHint"></div>
@@ -229,7 +235,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
     <div class="lbl">Caldo por hectárea (L/ha)</div>
     <div class="stepper">
       <button onclick="bumpCaldo(-1)">−</button>
-      <input type="number" inputmode="decimal" id="fCaldo" placeholder="0" oninput="calcAll()">
+      <input type="text" inputmode="decimal" id="fCaldo" placeholder="0" oninput="calcAll()">
       <button onclick="bumpCaldo(1)">+</button>
     </div>
   </div>
@@ -244,7 +250,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   <div class="card">
     <div class="lbl">Precio por hectárea</div>
     <div class="row mb">
-      <input type="number" inputmode="decimal" id="fPrecio" placeholder="0" oninput="calcAll();markPrecioManual()">
+      <input type="text" inputmode="decimal" id="fPrecio" placeholder="0" oninput="calcAll();markPrecioManual()">
       <div class="big" id="fTotal" style="flex:1.2;padding:8px 4px;font-size:24px">—</div>
     </div>
     <div class="sug" id="precioSug"></div>
@@ -253,11 +259,11 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
     <div class="row mb">
       <div>
         <div class="lbl">Viento (km/h)</div>
-        <input type="number" inputmode="decimal" id="fViento" placeholder="—">
+        <input type="text" inputmode="decimal" id="fViento" placeholder="—">
       </div>
       <div>
         <div class="lbl">Horas</div>
-        <input type="number" inputmode="decimal" id="fHoras" step="0.5" placeholder="—">
+        <input type="text" inputmode="decimal" id="fHoras" placeholder="—">
       </div>
     </div>
 
@@ -265,8 +271,8 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
     <div class="chips" id="fPersona"></div>
   </div>
 
-  <button class="btn" onclick="guardarTrabajo()">✓ Guardar trabajo</button>
-  <button class="btn ghost" style="margin-top:10px" onclick="limpiarForm(true)">Limpiar</button>
+  <button class="btn" id="btnGuardar" onclick="guardarTrabajo()">✓ Guardar trabajo</button>
+  <button class="btn ghost" style="margin-top:10px" id="btnLimpiar" onclick="limpiarForm(true)">Limpiar</button>
 </div></div>
 
 <!-- ============ HISTORIAL ============ -->
@@ -283,7 +289,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 <div class="view" id="v-gastos"><div class="wrap">
   <div class="card">
     <div class="lbl">Monto</div>
-    <input type="number" inputmode="decimal" id="gMonto" placeholder="0" class="mb"
+    <input type="text" inputmode="decimal" id="gMonto" placeholder="0" class="mb"
            style="font-size:30px;font-weight:800;text-align:center;padding:16px">
     <div class="row mb">
       <button class="chip on" id="gmUYU" onclick="setMoneda('UYU')" style="justify-content:center">$ UYU</button>
@@ -430,7 +436,16 @@ function hoyISO(d){ const x=new Date(); if(d)x.setDate(x.getDate()+d);
   return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()+0).padStart(2,'0'); }
 function fechaCorta(iso){ const [y,m,d]=iso.split('-'); return d+'/'+m; }
 function mesDe(iso){ return iso.slice(5,7)+' - '+iso.slice(0,4); }
-function num(v){ const n=parseFloat(String(v).replace(',','.')); return isNaN(n)?null:n; }
+// acepta lo que escribe el teclado del celular: coma o punto, y espacios sueltos
+function num(v){
+  if(v===null||v===undefined) return null;
+  const s=String(v).trim().replace(/\s/g,'').replace(',','.');
+  if(!s) return null;
+  const n=parseFloat(s);
+  return isNaN(n)?null:n;
+}
+// muestra los decimales con coma, como los escribís
+function dec(n){ return (n===null||n===undefined||n==='')?'':String(n).replace('.',','); }
 function esc(s){ return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function nombreMezcla(prods,adys){
   const it=[...(prods||[]),...(adys||[])].filter(p=>p.n);
@@ -444,7 +459,39 @@ function closeSheet(){ document.querySelectorAll('.sheet').forEach(s=>s.classLis
 /* ================= ESTADO FORM ================= */
 var F = {};
 function resetF(){ F = { fecha:hoyISO(), tipo:null, cliente:null, est:null, lote:null,
-  prods:[], adys:[], persona:null, precioManual:false }; }
+  prods:[], adys:[], persona:null, precioManual:false, editId:null }; }
+
+/* ================= EDITAR UN TRABAJO YA CARGADO ================= */
+function editarTrabajo(id){
+  const t = S.trabajos.find(x=>x.id===id); if(!t) return;
+  resetF();
+  F.editId = id; F.fecha = t.fecha; F.tipo = t.tipo || null;
+  F.cliente = t.cliente || null; F.est = t.est||null; F.lote = t.lote||null;
+  F.prods = (t.prods||[]).map(p=>({...p}));
+  F.adys  = (t.adys||[]).map(p=>({...p}));
+  F.persona = t.ay||null; F.precioManual = true;
+  $('fHa').value=dec(t.ha); $('fPrecio').value=dec(t.precio); $('fCaldo').value=dec(t.caldo);
+  $('fViento').value=dec(t.viento); $('fHoras').value=dec(t.horas);
+  closeSheet(); go('nuevo'); renderAll(); renderModoEdicion();
+  window.scrollTo(0,0);
+}
+function renderModoEdicion(){
+  const editando = !!F.editId;
+  $('bannerEdit').style.display = editando?'block':'none';
+  $('btnGuardar').textContent = editando?'✓ Guardar cambios':'✓ Guardar trabajo';
+  $('btnLimpiar').textContent = editando?'Cancelar':'Limpiar';
+  $('ttl').textContent = editando?'Editar trabajo':TTL.nuevo;
+  if(editando){
+    const t = S.trabajos.find(x=>x.id===F.editId);
+    $('bannerEditTxt').textContent = t
+      ? `${t.cliente} · ${t.tipo} · ${t.fecha.split('-').reverse().join('/')}` : '';
+  }
+}
+function cancelarEdicion(){
+  const id = F.editId;
+  limpiarForm(true);
+  if(id) verDetalle(id);
+}
 
 /* ================= NAVEGACIÓN ================= */
 var TTL = {nuevo:'Nuevo trabajo', hist:'Historial', gastos:'Gastos', num:'Números'};
@@ -478,7 +525,7 @@ function pickTipo(t){
   F.tipo = F.tipo===t ? null : t;
   if(F.tipo){
     const c = CALDO_DEF[F.tipo];
-    if(c && !$('fCaldo').value) $('fCaldo').value = c;
+    if(c && !$('fCaldo').value) $('fCaldo').value = dec(c);
     if(F.tipo!=='Fumigar' && !CALDO_DEF[F.tipo]) $('fCaldo').value='';
   }
   renderTipos(); renderRecetas(); sugerirPrecio(); calcAll();
@@ -532,12 +579,12 @@ function pickLote(l){
   else {
     F.lote=l;
     const ha = (S.jer[F.cliente][F.est]||{})[l];
-    if(ha) $('fHa').value = ha;
+    if(ha) $('fHa').value = dec(ha);
   }
   renderLote(); calcAll();
 }
-function bumpHa(d){ const e=$('fHa'); e.value = Math.max(0,(num(e.value)||0)+d).toFixed(1).replace(/\.0$/,''); calcAll(); }
-function bumpCaldo(d){ const e=$('fCaldo'); e.value = Math.max(0,(num(e.value)||0)+d); calcAll(); }
+function bumpHa(d){ const e=$('fHa'); e.value = dec(+Math.max(0,(num(e.value)||0)+d).toFixed(2)); calcAll(); }
+function bumpCaldo(d){ const e=$('fCaldo'); e.value = dec(+Math.max(0,(num(e.value)||0)+d).toFixed(2)); calcAll(); }
 
 /* ================= RECETAS ================= */
 function renderRecetas(){
@@ -552,7 +599,7 @@ function aplicarReceta(id){
   const r = S.recetas.find(x=>x.id===id); if(!r) return;
   F.prods = r.prods.map(p=>({...p}));
   F.adys  = (r.adys||[]).map(a=>({...a}));
-  if(r.caldo) $('fCaldo').value = r.caldo;
+  if(r.caldo) $('fCaldo').value = dec(r.caldo);
   if(r.tipo && !F.tipo){ F.tipo = r.tipo; renderTipos(); }
   renderProds(); calcAll(); closeSheet();
   toast('Mezcla cargada: '+r.nombre);
@@ -564,8 +611,8 @@ function renderProds(){
     <div class="prodline">
       <input class="pn" list="dl-${kind}" placeholder="${kind==='p'?'Producto':'Adyuvante'}"
              value="${esc(arr[i].n)}" oninput="F.${kind==='p'?'prods':'adys'}[${i}].n=this.value;calcAll()">
-      <input class="pd" type="number" inputmode="decimal" placeholder="dosis/ha"
-             value="${arr[i].d??''}" oninput="F.${kind==='p'?'prods':'adys'}[${i}].d=num(this.value);calcAll()">
+      <input class="pd" type="text" inputmode="decimal" placeholder="dosis/ha"
+             value="${dec(arr[i].d)}" oninput="F.${kind==='p'?'prods':'adys'}[${i}].d=num(this.value);calcAll()">
       <button class="x" onclick="F.${kind==='p'?'prods':'adys'}.splice(${i},1);renderProds();calcAll()">×</button>
     </div>`;
   $('fProds').innerHTML =
@@ -605,7 +652,7 @@ function sugerirPrecio(){
   if(F.precioManual) return;
   const k = F.cliente+'|'+F.tipo;
   const p = S.precios[k];
-  if(p){ $('fPrecio').value = p;
+  if(p){ $('fPrecio').value = dec(p);
     $('precioSug').textContent = `Último precio a ${F.cliente} por ${F.tipo}: $${p}/ha`; }
   else { $('fPrecio').value=''; $('precioSug').textContent = (F.cliente&&F.tipo)?'Sin precio anterior para esta combinación':''; }
   calcAll();
@@ -635,7 +682,20 @@ function guardarTrabajo(){
     horas: num($('fHoras').value), fact:false, cobr:false,
     op:'', ay: F.persona||'', nuevo:true
   };
-  S.trabajos.push(t);
+
+  const editando = F.editId ? S.trabajos.find(x=>x.id===F.editId) : null;
+  if(editando){
+    // conservamos id, estado de cobro y marca de exportación; el resto se reemplaza
+    Object.assign(editando, t, {
+      id: editando.id, fact: editando.fact, cobr: editando.cobr,
+      nuevo: editando.nuevo, op: editando.op,
+      sync: null,                       // se vuelve a mandar para corregir la planilla
+      editado: Date.now()
+    });
+    t.id = editando.id;
+  } else {
+    S.trabajos.push(t);
+  }
 
   // aprender
   if(t.precio) S.precios[t.cliente+'|'+t.tipo] = t.precio;
@@ -650,16 +710,20 @@ function guardarTrabajo(){
   // receta: si la mezcla ya existe suma uso, si no la crea
   const firma = j=>[...j.prods,...j.adys].map(p=>p.n+':'+p.d).sort().join('|');
   const f = firma(t);
-  if(f){
+  if(f && !editando){
     const r = S.recetas.find(x=>firma(x)===f);
     if(r) r.usos++;
     else S.recetas.push({id:uid(), nombre:nombreMezcla(t.prods,t.adys),
       tipo:t.tipo, usos:1, prods:t.prods.map(p=>({...p})), adys:t.adys.map(p=>({...p})), caldo:t.caldo});
   }
   save();
-  toast(`Guardado: ${t.tipo} ${fmtHa(ha)} ha` + (t.precio?` · $${fmt(ha*t.precio)}`:''));
-  limpiarForm();
+  const eraEdicion = !!editando;
+  toast(eraEdicion
+    ? `Cambios guardados: ${t.tipo} ${fmtHa(ha)} ha`
+    : `Guardado: ${t.tipo} ${fmtHa(ha)} ha` + (t.precio?` · $${fmt(ha*t.precio)}`:''));
+  limpiarForm(eraEdicion);
   updatePend(); updateSyncPill(); sincronizar();
+  if(eraEdicion){ renderHist(); }
 }
 function limpiarForm(manual){
   const cli=F.cliente, est=F.est, tipo=F.tipo;
@@ -668,7 +732,7 @@ function limpiarForm(manual){
   ['fHa','fPrecio','fViento','fHoras'].forEach(i=>$(i).value='');
   if(manual) $('fCaldo').value='';
   $('fFecha').value = F.fecha;
-  renderAll();
+  renderAll(); renderModoEdicion();
   if(!manual) window.scrollTo(0,0);
 }
 function updatePend(){
@@ -780,7 +844,8 @@ function verDetalle(id){
     ${[t.viento?'Viento '+t.viento+' km/h':'',t.horas?t.horas+' h':'',t.ay?'Ayudante: '+t.ay:'']
       .filter(Boolean).map(x=>`<div class="hint">${esc(x)}</div>`).join('')}
     <div class="divide"></div>
-    <button class="btn ghost sm mb" onclick="repetir('${t.id}')">↻ Repetir este trabajo</button>
+    <button class="btn sm mb" onclick="editarTrabajo('${t.id}')">✎ Editar este trabajo</button>
+    <button class="btn ghost sm mb" onclick="repetir('${t.id}')">↻ Repetir como uno nuevo</button>
     <button class="btn danger sm" onclick="borrarTrabajo('${t.id}')">Borrar</button>`;
   $('shDetalle').classList.add('on');
 }
@@ -791,7 +856,7 @@ function repetir(id){
   F.fecha=hoyISO(); F.tipo=t.tipo; F.cliente=t.cliente; F.est=t.est||null; F.lote=t.lote||null;
   F.prods=(t.prods||[]).map(p=>({...p})); F.adys=(t.adys||[]).map(p=>({...p}));
   F.persona=t.ay||null; F.precioManual=true;
-  $('fHa').value=t.ha??''; $('fPrecio').value=t.precio??''; $('fCaldo').value=t.caldo??'';
+  $('fHa').value=dec(t.ha); $('fPrecio').value=dec(t.precio); $('fCaldo').value=dec(t.caldo);
   $('fFecha').value=F.fecha; $('fViento').value=''; $('fHoras').value='';
   closeSheet(); go('nuevo'); renderAll();
   toast('Cargado — revisá y guardá');
@@ -809,11 +874,56 @@ function renderGastos(){
   $('gCat').innerHTML = CATS.map(c=>
     `<button class="chip${gCat===c?' on':''}" onclick="gCat=gCat==='${c}'?null:'${c}';renderGastos()">${c}</button>`).join('');
   $('gastoList').innerHTML = S.gastos.slice().reverse().slice(0,40).map(g=>
-    `<div class="item"><div class="l"><div class="t1">${esc(g.cat)}</div>
+    `<div class="item" onclick="verGasto('${g.id}')"><div class="l"><div class="t1">${esc(g.cat)}</div>
       <div class="t2">${esc(g.nota||'—')}</div></div>
      <div class="r"><div class="amt">${g.moneda==='USD'?'US$':'$'}${fmt(g.monto,2)}</div>
       <div class="dt">${fechaCorta(g.fecha)}</div></div></div>`).join('')
     || `<div class="empty">Todavía no cargaste gastos</div>`;
+}
+function verGasto(id){
+  const g = S.gastos.find(x=>x.id===id); if(!g) return;
+  $('detalleBody').innerHTML = `
+    <h3>${esc(g.cat)}</h3>
+    <div class="hint" style="margin:-10px 0 16px">${g.fecha.split('-').reverse().join('/')}</div>
+    <div class="lbl">Monto</div>
+    <input type="text" inputmode="decimal" id="egMonto" value="${dec(g.monto)}" class="mb">
+    <div class="row mb">
+      <button class="chip${g.moneda==='UYU'?' on':''}" style="justify-content:center"
+        onclick="egM('UYU')" id="egmUYU">$ UYU</button>
+      <button class="chip${g.moneda==='USD'?' on':''}" style="justify-content:center"
+        onclick="egM('USD')" id="egmUSD">US$ USD</button>
+    </div>
+    <div class="lbl">Categoría</div>
+    <div class="chips mb" id="egCat">${CATS.map(c=>
+      `<button class="chip sm${g.cat===c?' on':''}" onclick="egC('${c}')">${c}</button>`).join('')}</div>
+    <div class="lbl">Nota</div>
+    <input id="egNota" value="${esc(g.nota||'')}" class="mb">
+    <div class="lbl">Fecha</div>
+    <input type="date" id="egFecha" value="${g.fecha}" class="mb">
+    <button class="btn sm mb" onclick="guardarEdicionGasto('${g.id}')">✓ Guardar cambios</button>
+    <button class="btn danger sm" onclick="borrarGasto('${g.id}')">Borrar</button>`;
+  $('shDetalle').classList.add('on');
+  egEdit = {moneda:g.moneda, cat:g.cat};
+}
+var egEdit = {};
+function egM(m){ egEdit.moneda=m;
+  $('egmUYU').classList.toggle('on',m==='UYU'); $('egmUSD').classList.toggle('on',m==='USD'); }
+function egC(c){ egEdit.cat=c;
+  [...$('egCat').children].forEach(b=>b.classList.toggle('on', b.textContent===c)); }
+function guardarEdicionGasto(id){
+  const g = S.gastos.find(x=>x.id===id); if(!g) return;
+  const m = num($('egMonto').value);
+  if(!m) return toast('Falta el monto','err');
+  g.monto=m; g.moneda=egEdit.moneda||g.moneda; g.cat=egEdit.cat||g.cat;
+  g.nota=$('egNota').value.trim(); g.fecha=$('egFecha').value||g.fecha;
+  g.sync=null;
+  save(); closeSheet(); renderGastos(); updateSyncPill(); sincronizar();
+  toast('Gasto actualizado');
+}
+function borrarGasto(id){
+  if(!confirm('¿Borrar este gasto?'))return;
+  S.gastos = S.gastos.filter(x=>x.id!==id);
+  save(); closeSheet(); renderGastos(); toast('Gasto borrado');
 }
 function guardarGasto(){
   const m = num($('gMonto').value);
@@ -1030,7 +1140,7 @@ function borrarTodo(){
 function renderAll(){
   $('fFecha').value = F.fecha;
   renderFechaChips(); renderTipos(); renderClientes(); renderEst(); renderLote();
-  renderRecetas(); renderProds(); renderPersonas(); calcAll();
+  renderRecetas(); renderProds(); renderPersonas(); calcAll(); renderModoEdicion();
 }
 load(); resetF(); renderAll(); updatePend();
 pedirPersistencia();
