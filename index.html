@@ -164,7 +164,19 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 <body>
 <div class="top">
   <h1 id="ttl">Nuevo trabajo</h1>
+  <span class="pill" id="syncPill" style="display:none"></span>
   <span class="pill" id="pendPill" style="display:none"></span>
+</div>
+
+<div class="wrap" id="avisoBackup" style="display:none;padding-bottom:0">
+  <div class="card" style="border-color:#7a5a12;background:#2b2410">
+    <div style="font-weight:700;color:var(--warn);margin-bottom:4px">⚠ Respaldo pendiente</div>
+    <div class="hint" id="avisoBackupTxt" style="color:#e8d9a8"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn sm" onclick="backup()">Hacer copia ahora</button>
+      <button class="btn ghost sm" onclick="this.closest('#avisoBackup').style.display='none'">Después</button>
+    </div>
+  </div>
 </div>
 
 <!-- ============ NUEVO TRABAJO ============ -->
@@ -303,8 +315,24 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
     <div class="lbl">Por cliente</div>
     <div id="numClientes"></div>
   </div>
+  <div class="card" id="syncBox">
+    <div class="lbl">☁ Copia automática a tu planilla</div>
+    <div class="mb" id="syncResumen"></div>
+    <input id="syncUrl" placeholder="https://script.google.com/macros/s/…/exec"
+           style="font-size:14px" class="mb">
+    <div class="row mb">
+      <button class="btn ghost sm" onclick="guardarSyncUrl()">Guardar</button>
+      <button class="btn ghost sm" onclick="probarSync()">Probar</button>
+      <button class="btn ghost sm" onclick="sincronizar(true)">Enviar ahora</button>
+    </div>
+    <div class="hint" id="syncEstado"></div>
+    <div class="hint">Cada trabajo que guardás se manda solo a tu planilla. Sin señal queda en cola y sale cuando volvés a tener datos.</div>
+  </div>
+
   <div class="card">
-    <div class="lbl">Datos</div>
+    <div class="lbl">Seguridad de los datos</div>
+    <div class="hint mb" id="almHint"></div>
+    <div class="hint mb" id="backupHint"></div>
     <button class="btn ghost sm mb" onclick="exportCSV()">⬇ Exportar trabajos (CSV para el Sheet)</button>
     <button class="btn ghost sm mb" onclick="exportGastosCSV()">⬇ Exportar gastos (CSV)</button>
     <button class="btn ghost sm mb" onclick="backup()">💾 Copia de seguridad (JSON)</button>
@@ -349,7 +377,9 @@ var S = null;
 function load(){
   try{ const raw = localStorage.getItem(K); if(raw){ S = JSON.parse(raw); return; } }catch(e){}
   S = {
-    trabajos: SEED.trabajos.map(t=>({...t, id: t.id || uid()})),
+    // el histórico ya vive en tu planilla original: se marca como enviado
+    // para no duplicarlo en la hoja nueva
+    trabajos: SEED.trabajos.map(t=>({...t, id: t.id || uid(), sync: 1})),
     gastos: [],
     recetas: SEED.recetas.map(r=>({...r, id: uid(), fav:false})),
     jer: JSON.parse(JSON.stringify(SEED.jerarquia)),
@@ -358,12 +388,33 @@ function load(){
     adyuvantes: [...SEED.adyuvantes],
     tipos: [...SEED.tipos],
     personas: [...SEED.personas],
+    syncUrl: '', ultBackup: null,
     creado: new Date().toISOString()
   };
   save();
 }
 function save(){ try{ localStorage.setItem(K, JSON.stringify(S)); }catch(e){ toast('Sin espacio para guardar','err'); } }
 function uid(){ return Math.random().toString(36).slice(2,10); }
+
+/* ====== CAPA 1: pedir que el navegador NO borre los datos ====== */
+async function pedirPersistencia(){
+  try{
+    if(!navigator.storage || !navigator.storage.persist) return null;
+    if(await navigator.storage.persisted()) return true;
+    return await navigator.storage.persist();
+  }catch(e){ return null; }
+}
+async function estadoAlmacenamiento(){
+  try{
+    const p = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : null;
+    let uso='';
+    if(navigator.storage && navigator.storage.estimate){
+      const e = await navigator.storage.estimate();
+      if(e.usage!=null) uso = ` · ${(e.usage/1048576).toFixed(1)} MB usados`;
+    }
+    return {persistido:p, uso};
+  }catch(e){ return {persistido:null, uso:''}; }
+}
 
 /* ================= HELPERS ================= */
 var $ = id => document.getElementById(id);
@@ -608,7 +659,7 @@ function guardarTrabajo(){
   save();
   toast(`Guardado: ${t.tipo} ${fmtHa(ha)} ha` + (t.precio?` · $${fmt(ha*t.precio)}`:''));
   limpiarForm();
-  updatePend();
+  updatePend(); updateSyncPill(); sincronizar();
 }
 function limpiarForm(manual){
   const cli=F.cliente, est=F.est, tipo=F.tipo;
@@ -771,7 +822,7 @@ function guardarGasto(){
   S.gastos.push({id:uid(), fecha:hoyISO(), monto:m, moneda:gMoneda, cat:gCat, nota:$('gNota').value.trim()});
   save();
   $('gMonto').value=''; $('gNota').value=''; gCat=null;
-  renderGastos(); toast('Gasto guardado');
+  renderGastos(); updateSyncPill(); sincronizar(); toast('Gasto guardado');
 }
 
 /* ================= NÚMEROS ================= */
@@ -817,6 +868,107 @@ function renderNum(){
       <span>${esc(k)}</span><span style="color:var(--dim)">${fmtHa(v.ha)} ha · <b style="color:var(--txt)">$${fmt(v.$)}</b></span></div>`).join('')
     || '<div class="hint">Sin datos</div>';
   $('dataHint').textContent = `${S.trabajos.length} trabajos · ${S.gastos.length} gastos · ${S.recetas.length} mezclas guardadas`;
+  renderSync();
+  $('backupHint').textContent = S.ultBackup
+    ? 'Última copia: '+new Date(S.ultBackup).toLocaleDateString('es-UY')
+    : 'Todavía no hiciste ninguna copia';
+  estadoAlmacenamiento().then(({persistido,uso})=>{
+    const e=$('almHint'); if(!e) return;
+    e.innerHTML = persistido===true
+      ? `<span style="color:var(--accent)">✓ Este teléfono tiene los datos protegidos: el navegador no los va a borrar por falta de espacio.${uso}</span>`
+      : persistido===false
+        ? `<span style="color:var(--warn)">⚠ El navegador todavía no marcó los datos como permanentes. Si instalás la app en la pantalla de inicio suele activarse solo.${uso}</span>`
+        : `<span style="color:var(--dim)">Este navegador no informa el estado del almacenamiento.${uso}</span>`;
+  });
+}
+
+/* ================= CAPA 3: SINCRONIZACIÓN CON EL SHEET ================= */
+var sincronizando=false;
+function pendientesSync(){
+  if(!S.syncUrl) return [];
+  return [...S.trabajos.filter(t=>!t.sync), ...S.gastos.filter(g=>!g.sync)];
+}
+function updateSyncPill(){
+  const p=$('syncPill'); if(!p) return;
+  const n=pendientesSync().length;
+  if(!S.syncUrl){ p.style.display='none'; return; }
+  p.style.display = n?'inline-block':'none';
+  p.className='pill'; p.textContent = n+' por enviar';
+}
+async function sincronizar(manual){
+  if(sincronizando) return;
+  if(!S.syncUrl){ if(manual) toast('Falta configurar la dirección','err'); return; }
+  const pend = pendientesSync();
+  if(!pend.length){ if(manual) toast('Ya está todo enviado'); return; }
+  if(!navigator.onLine){ if(manual) toast('Sin conexión — se envía solo después','err'); return; }
+  sincronizando=true; renderSync();
+  try{
+    const paquete = {
+      trabajos: S.trabajos.filter(t=>!t.sync),
+      gastos: S.gastos.filter(g=>!g.sync)
+    };
+    // body como texto plano => pedido simple, sin preflight CORS
+    const r = await fetch(S.syncUrl, {method:'POST', body: JSON.stringify(paquete), redirect:'follow'});
+    const txt = await r.text();
+    let res; try{ res = JSON.parse(txt); }catch(e){ throw new Error('Respuesta inesperada del script'); }
+    if(!res.ok) throw new Error(res.error||'El script devolvió un error');
+    const ok = new Set([...(res.trabajos||[]), ...(res.gastos||[])]);
+    S.trabajos.forEach(t=>{ if(ok.has(t.id)) t.sync=Date.now(); });
+    S.gastos.forEach(g=>{ if(ok.has(g.id)) g.sync=Date.now(); });
+    S.ultSync = Date.now(); save();
+    toast(`${ok.size} guardado${ok.size===1?'':'s'} en tu planilla`);
+  }catch(e){
+    if(manual) toast('No se pudo enviar: '+e.message,'err');
+  }finally{
+    sincronizando=false; updateSyncPill(); renderSync();
+  }
+}
+function guardarSyncUrl(){
+  const u = $('syncUrl').value.trim();
+  if(u && !/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(u))
+    return toast('Esa dirección no parece la del script','err');
+  S.syncUrl = u; save(); renderSync(); updateSyncPill();
+  toast(u?'Dirección guardada':'Sincronización desactivada');
+  if(u) probarSync();
+}
+async function probarSync(){
+  if(!S.syncUrl) return toast('Pegá primero la dirección','err');
+  $('syncEstado').textContent='Probando…';
+  try{
+    const r = await fetch(S.syncUrl+'?ping=1', {redirect:'follow'});
+    const res = JSON.parse(await r.text());
+    if(res.ok){ $('syncEstado').innerHTML =
+      `<span style="color:var(--accent)">✓ Conectado a la planilla${res.hoja?' — hoja "'+esc(res.hoja)+'"':''}</span>`;
+      sincronizar(); }
+    else throw new Error(res.error||'sin ok');
+  }catch(e){
+    $('syncEstado').innerHTML = `<span style="color:var(--bad)">✗ No responde. Revisá que hayas publicado el script con acceso "Cualquier persona".</span>`;
+  }
+}
+function renderSync(){
+  const box=$('syncBox'); if(!box) return;
+  const n=pendientesSync().length;
+  $('syncUrl').value = S.syncUrl||'';
+  $('syncResumen').innerHTML = !S.syncUrl
+    ? '<span style="color:var(--dim)">Desactivada — tus datos viven solo en este teléfono</span>'
+    : (sincronizando ? 'Enviando…'
+      : n ? `<span style="color:var(--warn)">${n} sin enviar</span>`
+          : `<span style="color:var(--accent)">✓ Todo en tu planilla${S.ultSync?' · '+new Date(S.ultSync).toLocaleString('es-UY',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}</span>`);
+}
+window.addEventListener('online', ()=>sincronizar());
+
+/* ====== CAPA 2: recordatorio de respaldo ====== */
+function chequearBackup(){
+  const dias = S.ultBackup ? (Date.now()-S.ultBackup)/86400000 : 999;
+  const sinSync = !S.syncUrl;
+  if(dias>7 && sinSync && S.trabajos.some(t=>t.nuevo!==false && t.sync===undefined)){
+    setTimeout(()=>{
+      $('avisoBackup').style.display='block';
+      $('avisoBackupTxt').textContent = S.ultBackup
+        ? `Hace ${Math.floor(dias)} días que no hacés una copia de seguridad.`
+        : 'Todavía no hiciste ninguna copia de seguridad.';
+    }, 900);
+  }
 }
 
 /* ================= EXPORTAR ================= */
@@ -852,7 +1004,12 @@ function exportGastosCSV(){
     [g.fecha.split('-').reverse().join('/'),g.monto,g.moneda,g.cat,g.nota,mesDe(g.fecha)].map(csvCell).join(';'))].join('\n'));
   toast(`${S.gastos.length} gastos exportados`);
 }
-function backup(){ dl(`respaldo_drone_${hoyISO()}.json`, JSON.stringify(S), 'application/json'); toast('Copia descargada'); }
+function backup(){
+  dl(`respaldo_drone_${hoyISO()}.json`, JSON.stringify(S), 'application/json');
+  S.ultBackup = Date.now(); save();
+  const a=$('avisoBackup'); if(a) a.style.display='none';
+  renderNum(); toast('Copia descargada — guardala en Drive o mandátela por mail');
+}
 function restore(inp){
   const f=inp.files[0]; if(!f)return;
   const r=new FileReader();
@@ -876,6 +1033,9 @@ function renderAll(){
   renderRecetas(); renderProds(); renderPersonas(); calcAll();
 }
 load(); resetF(); renderAll(); updatePend();
+pedirPersistencia();
+updateSyncPill(); renderSync(); chequearBackup();
+if(S.syncUrl) sincronizar();
 window.addEventListener('beforeunload', save);
 </script>
 </body>
