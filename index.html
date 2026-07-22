@@ -161,6 +161,37 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 .prodline .pn{flex:1.7}.prodline .pd{flex:1}
 .prodline .x{flex:none;width:40px;height:44px;display:flex;align-items:center;
   justify-content:center;color:var(--bad);font-size:22px}
+.prodline .calc{flex:none;font-size:11.5px;color:var(--dim);font-weight:700;
+  min-width:66px;text-align:right;line-height:1.25}
+
+/* ---------- cronómetro ---------- */
+.crono{display:flex;align-items:center;gap:12px;background:var(--card2);
+  border:1.5px solid var(--line);border-radius:15px;padding:12px 14px;margin-top:14px}
+.crono.on{border-color:var(--accent);background:#14351f}
+.crono .cr-l{flex:1;min-width:0}
+.crono .cr-t{font-size:26px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.crono.on .cr-t{color:var(--accent)}
+.crono .cr-s{font-size:12px;color:var(--dim);font-weight:600}
+.crono .cr-b{flex:none;background:var(--accent2);color:#06120b;font-weight:800;
+  padding:13px 20px;border-radius:12px;font-size:15px}
+.crono.on .cr-b{background:var(--bad);color:#2b0d0d}
+.crono .cr-x{flex:none;width:40px;height:44px;color:var(--dim);font-size:19px}
+
+/* ---------- costos ---------- */
+.kv{display:flex;justify-content:space-between;align-items:baseline;
+  padding:9px 0;border-bottom:1px solid var(--line);gap:10px;font-size:15px}
+.kv:last-child{border-bottom:none}
+.kv .k{color:var(--dim)}
+.kv .v{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kv.big{padding:13px 0}
+.kv.big .k{color:var(--txt);font-weight:700}
+.kv.big .v{font-size:21px}
+.kv.good .v{color:var(--accent)}
+.kv.warn .v{color:var(--warn)}
+.kv.bad .v{color:var(--bad)}
+.aviso{background:#2b2410;border:1px solid #7a5a12;border-radius:12px;
+  padding:11px 13px;margin-bottom:13px;font-size:13.5px;color:#e8d9a8;line-height:1.45}
+.aviso.rojo{background:#2b1414;border-color:#7f2d2d;color:#f5c2c2}
 </style>
 </head>
 <body>
@@ -240,6 +271,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       <input type="text" inputmode="decimal" id="fCaldo" placeholder="0" oninput="calcAll()">
       <button onclick="bumpCaldo(1)">+</button>
     </div>
+    <div class="hint" id="aguaHint"></div>
   </div>
 
   <div class="tank" id="tank" style="display:none">
@@ -269,6 +301,16 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       </div>
     </div>
 
+    <div class="crono" id="crono">
+      <div class="cr-l">
+        <div class="cr-t" id="crTiempo">0:00</div>
+        <div class="cr-s" id="crEstado">Cronómetro parado</div>
+      </div>
+      <button class="cr-b" id="crBtn" onclick="cronoToggle()">Arrancar</button>
+      <button class="cr-x" id="crReset" onclick="cronoReset()" style="display:none">✕</button>
+    </div>
+    <div class="hint">Podés cerrar la app y bloquear la pantalla: cuenta contra el reloj del celular.</div>
+
     <div class="lbl">Ayudante / operador</div>
     <div class="chips" id="fPersona"></div>
   </div>
@@ -285,6 +327,67 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   </div>
   <div class="chips mb" id="histFiltros"></div>
   <div id="histList"></div>
+</div></div>
+
+<!-- ============ TANCADAS ============ -->
+<div class="view" id="v-tanc"><div class="wrap">
+
+  <div class="card">
+    <div class="row mb">
+      <div>
+        <div class="lbl">Caldo por ha (L/ha)</div>
+        <input type="text" inputmode="decimal" id="tCaldo" oninput="renderTanc()">
+      </div>
+      <div>
+        <div class="lbl">Hectáreas del lote</div>
+        <input type="text" inputmode="decimal" id="tHasLote" oninput="renderTanc()">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <div class="lbl">Tanque máximo (L)</div>
+        <input type="text" inputmode="decimal" id="tMaxTanque" oninput="renderTanc()">
+      </div>
+      <div>
+        <div class="lbl">Hectáreas por tancada</div>
+        <input type="text" inputmode="decimal" id="tHasTancada" oninput="renderTanc()">
+      </div>
+    </div>
+    <button class="btn ghost sm" style="margin-top:11px" onclick="usarMaximo()">
+      Llenar el tanque al máximo</button>
+    <div class="hint" id="tMaxHint"></div>
+  </div>
+
+  <div class="tank" id="tancRes">
+    <div class="lbl">🚁 La tancada</div>
+    <div class="tot" id="tLitros">—</div>
+    <div class="sub" id="tLitrosSub"></div>
+    <div class="tankrow"><span class="nm">Tancadas para el lote</span>
+      <span class="qt" id="tNum">—</span></div>
+    <div class="tankrow"><span class="nm">Última tancada</span>
+      <span class="qt" id="tUltima" style="font-size:15px">—</span></div>
+    <div class="tankrow"><span class="nm">💧 Agua por tancada</span>
+      <span class="qt" id="tAguaTancada">—</span></div>
+    <div class="tankrow"><span class="nm">💧 Agua para todo el lote</span>
+      <span class="qt" id="tAguaLote">—</span></div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">Productos <span style="text-transform:none;font-weight:600">— dosis por hectárea</span></div>
+    <div id="tProds"></div>
+    <button class="chip add sm" onclick="tAdd('prod')">+ Producto</button>
+  </div>
+
+  <div class="card">
+    <div class="lbl">Adyuvantes <span style="text-transform:none;font-weight:600">— dosis por 100 L de mezcla</span></div>
+    <div id="tAdys"></div>
+    <button class="chip add sm" onclick="tAdd('ady')">+ Adyuvante</button>
+  </div>
+
+  <button class="btn" onclick="volcarATrabajo()">→ Pasar esta mezcla a un trabajo</button>
+  <div class="hint" style="text-align:center;margin-top:8px">
+    Los adyuvantes se convierten de dosis/100 L a dosis/ha automáticamente.</div>
+  <button class="btn ghost" style="margin-top:12px" onclick="limpiarTanc()">Limpiar</button>
 </div></div>
 
 <!-- ============ GASTOS ============ -->
@@ -318,6 +421,49 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   <div class="card">
     <div class="lbl">Pendiente de cobro</div>
     <div id="numCobrar"></div>
+  </div>
+
+  <div class="card" id="costoBox">
+    <div class="lbl">💰 Tu costo y tu precio</div>
+    <div id="costoAviso"></div>
+    <div id="costoResumen"></div>
+    <button class="btn ghost sm" style="margin-top:12px" onclick="toggleParam()">
+      ⚙ Ajustar parámetros</button>
+    <div id="paramBox" style="display:none;margin-top:14px">
+      <div class="divide"></div>
+      <div class="lbl">Costo del drone y equipo (USD)</div>
+      <input type="text" inputmode="decimal" id="pEquipo" class="mb" oninput="guardarParam()">
+      <div class="row mb">
+        <div>
+          <div class="lbl">Vida útil (años)</div>
+          <input type="text" inputmode="decimal" id="pVida" oninput="guardarParam()">
+        </div>
+        <div>
+          <div class="lbl">Hectáreas por año</div>
+          <input type="text" inputmode="decimal" id="pHaAnio" oninput="guardarParam()">
+        </div>
+      </div>
+      <div class="row mb">
+        <div>
+          <div class="lbl">Juego de baterías (USD)</div>
+          <input type="text" inputmode="decimal" id="pBatCosto" oninput="guardarParam()">
+        </div>
+        <div>
+          <div class="lbl">Ha por juego</div>
+          <input type="text" inputmode="decimal" id="pBatHa" oninput="guardarParam()">
+        </div>
+      </div>
+      <div class="lbl">Margen que querés ganar (%)</div>
+      <input type="text" inputmode="decimal" id="pMargen" class="mb" oninput="guardarParam()">
+      <div class="hint">Los gastos que cargás en la app y los que ya tenés en la planilla
+        se suman como costo operativo. La deuda del drone no cuenta como costo: entra
+        por la amortización.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">Margen por cliente</div>
+    <div id="costoClientes"></div>
   </div>
   <div class="card">
     <div class="lbl">Por cliente</div>
@@ -353,6 +499,8 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 
 <!-- ============ NAV ============ -->
 <nav class="nav">
+  <button data-v="tanc" onclick="go('tanc')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 3h12v5a6 6 0 01-6 6 6 6 0 01-6-6V3zM9 21h6M12 14v7"/></svg>Tancadas</button>
   <button class="on" data-v="nuevo" onclick="go('nuevo')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>Nuevo</button>
   <button data-v="hist" onclick="go('hist')">
@@ -387,6 +535,9 @@ function load(){
     if(raw){ S = JSON.parse(raw);
       // migración: versiones anteriores no guardaban la unidad de cada producto
       if(!S.unidades) S.unidades = {...SEED.unidades};
+      if(!S.tanc)  S.tanc  = tancDef();
+      if(!S.param) S.param = paramDef();
+      if(!S.crono) S.crono = {};
       return;
     }
   }catch(e){}
@@ -403,6 +554,7 @@ function load(){
     tipos: [...SEED.tipos],
     personas: [...SEED.personas],
     unidades: {...SEED.unidades},
+    tanc: tancDef(), param: paramDef(), crono: {}, tipoCambio: 42,
     syncUrl: '', ultBackup: null,
     creado: new Date().toISOString()
   };
@@ -491,7 +643,8 @@ function cantidadTotal(dosis, ha, unidad){
 /* ================= ESTADO FORM ================= */
 var F = {};
 function resetF(){ F = { fecha:hoyISO(), tipo:null, cliente:null, est:null, lote:null,
-  prods:[], adys:[], persona:null, precioManual:false, editId:null }; }
+  prods:[], adys:[], persona:null, precioManual:false, editId:null,
+  agua:null, tancadas:null, maxTanque:null }; }
 
 /* ================= EDITAR UN TRABAJO YA CARGADO ================= */
 function editarTrabajo(id){
@@ -502,6 +655,9 @@ function editarTrabajo(id){
   F.prods = (t.prods||[]).map(p=>({...p}));
   F.adys  = (t.adys||[]).map(p=>({...p}));
   F.persona = t.ay||null; F.precioManual = true;
+  F.agua = t.agua!==undefined?t.agua:null;
+  F.tancadas = t.tancadas!==undefined?t.tancadas:null;
+  F.maxTanque = t.maxTanque!==undefined?t.maxTanque:null;
   $('fHa').value=dec(t.ha); $('fPrecio').value=dec(t.precio); $('fCaldo').value=dec(t.caldo);
   $('fViento').value=dec(t.viento); $('fHoras').value=dec(t.horas);
   closeSheet(); go('nuevo'); renderAll(); renderModoEdicion();
@@ -526,7 +682,8 @@ function cancelarEdicion(){
 }
 
 /* ================= NAVEGACIÓN ================= */
-var TTL = {nuevo:'Nuevo trabajo', hist:'Historial', gastos:'Gastos', num:'Números'};
+var TTL = {nuevo:'Nuevo trabajo', tanc:'Tancadas', hist:'Historial',
+           gastos:'Gastos', num:'Números'};
 function go(v){
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
   $('v-'+v).classList.add('on');
@@ -536,6 +693,8 @@ function go(v){
   if(v==='hist') renderHist();
   if(v==='num') renderNum();
   if(v==='gastos') renderGastos();
+  if(v==='tanc'){ tCargarInputs(); renderTancListas(); renderTanc(); }
+  if(v==='nuevo') renderCrono();
 }
 
 /* ================= FECHA ================= */
@@ -663,6 +822,17 @@ function calcAll(){
   $('haHint').textContent = (haRef && ha && Math.abs(haRef-ha)>0.05)
     ? `Antes anotaste ${fmtHa(haRef)} ha en ${F.lote}` : '';
 
+  // agua = caldo/ha menos todo lo que va disuelto
+  const liq = [...F.prods,...F.adys].filter(p=>p.n && p.d &&
+    unidadDe(p.n, F.tipo, false)==='L').reduce((a,p)=>a+p.d, 0);
+  if(caldo && liq>=0){
+    const agua = caldo - liq;
+    F.agua = +agua.toFixed(3);
+    $('aguaHint').innerHTML = agua>=0
+      ? `💧 Agua: <b>${dec(+agua.toFixed(2))} L/ha</b>` + (ha?` · ${fmt(agua*ha,0)} L en total`:'')
+      : `<span style="color:var(--bad)">Los productos suman más que el caldo/ha</span>`;
+  } else { $('aguaHint').textContent=''; F.agua=null; }
+
   const items = [...F.prods.map(p=>({...p,ady:false})), ...F.adys.map(p=>({...p,ady:true}))]
     .filter(p=>p.n && p.d);
   const tk = $('tank');
@@ -714,6 +884,7 @@ function guardarTrabajo(){
     prods: F.prods.filter(p=>p.n).map(p=>({n:p.n.trim(),d:p.d})),
     adys:  F.adys.filter(p=>p.n).map(p=>({n:p.n.trim(),d:p.d})),
     horas: num($('fHoras').value), fact:false, cobr:false,
+    agua: F.agua, tancadas: F.tancadas, maxTanque: F.maxTanque,
     op:'', ay: F.persona||'', nuevo:true
   };
 
@@ -757,6 +928,9 @@ function guardarTrabajo(){
     : `Guardado: ${t.tipo} ${fmtHa(ha)} ha` + (t.precio?` · $${fmt(ha*t.precio)}`:''));
   limpiarForm(eraEdicion);
   updatePend(); updateSyncPill(); sincronizar();
+  if(!eraEdicion && S.crono && (S.crono.inicio || S.crono.acumulado)){
+    S.crono = {}; save(); renderCrono();
+  }
   if(eraEdicion){ renderHist(); }
 }
 function limpiarForm(manual){
@@ -764,6 +938,7 @@ function limpiarForm(manual){
   resetF();
   if(!manual){ F.cliente=cli; F.est=est; F.tipo=tipo; }  // mismo campo, otro lote
   ['fHa','fPrecio','fViento','fHoras'].forEach(i=>$(i).value='');
+  F.agua=null; F.tancadas=null; F.maxTanque=null;
   if(manual) $('fCaldo').value='';
   $('fFecha').value = F.fecha;
   renderAll(); renderModoEdicion();
@@ -774,6 +949,212 @@ function updatePend(){
   const p = $('pendPill');
   p.style.display = n?'inline-block':'none';
   p.className = 'pill on'; p.textContent = n+' sin exportar';
+}
+
+/* ================= CALCULADOR DE TANCADAS ================= */
+function tancDef(){
+  return { caldo:15, hasLote:null, maxTanque:300, hasTancada:null,
+           prods:[{n:'',d:null}], adys:[] };
+}
+function tancEstado(){
+  if(!S.tanc) S.tanc = tancDef();
+  return S.tanc;
+}
+function tLeer(){
+  const t = tancEstado();
+  t.caldo      = num($('tCaldo').value);
+  t.hasLote    = num($('tHasLote').value);
+  t.maxTanque  = num($('tMaxTanque').value);
+  t.hasTancada = num($('tHasTancada').value);
+  return t;
+}
+function tCargarInputs(){
+  const t = tancEstado();
+  $('tCaldo').value      = dec(t.caldo);
+  $('tHasLote').value    = dec(t.hasLote);
+  $('tMaxTanque').value  = dec(t.maxTanque);
+  $('tHasTancada').value = dec(t.hasTancada);
+}
+function tAdd(kind){
+  const t = tancEstado();
+  (kind==='prod' ? t.prods : t.adys).push({n:'',d:null});
+  save(); renderTancListas(); renderTanc();
+}
+function renderTancListas(){
+  const t = tancEstado();
+  const linea = (arr,i,kind)=>`
+    <div class="prodline">
+      <input class="pn" list="dl-${kind==='prod'?'p':'a'}"
+             placeholder="${kind==='prod'?'Producto':'Adyuvante'}"
+             value="${esc(arr[i].n)}"
+             oninput="S.tanc.${kind==='prod'?'prods':'adys'}[${i}].n=this.value;save();renderTanc()">
+      <input class="pd" type="text" inputmode="decimal"
+             placeholder="${kind==='prod'?'L/ha':'/100 L'}"
+             value="${dec(arr[i].d)}"
+             oninput="S.tanc.${kind==='prod'?'prods':'adys'}[${i}].d=num(this.value);save();renderTanc()">
+      <span class="calc" id="tc-${kind}-${i}"></span>
+      <button class="x" onclick="S.tanc.${kind==='prod'?'prods':'adys'}.splice(${i},1);save();renderTancListas();renderTanc()">×</button>
+    </div>`;
+  $('tProds').innerHTML = t.prods.map((_,i)=>linea(t.prods,i,'prod')).join('')
+    + `<datalist id="dl-p">${S.productos.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>`;
+  $('tAdys').innerHTML  = t.adys.map((_,i)=>linea(t.adys,i,'ady')).join('')
+    + `<datalist id="dl-a">${S.adyuvantes.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>`;
+}
+function usarMaximo(){
+  const t = tLeer();
+  if(!t.caldo || !t.maxTanque) return toast('Cargá el caldo/ha y el tanque máximo','err');
+  t.hasTancada = Math.floor((t.maxTanque / t.caldo) * 100) / 100;
+  $('tHasTancada').value = dec(t.hasTancada);
+  save(); renderTanc();
+  toast(`Con ${dec(t.maxTanque)} L hacés ${dec(t.hasTancada)} ha por tancada`);
+}
+// una tancada llena = caldo/ha × ha por tancada
+function calcTancadas(t){
+  const litrosTancada = (t.caldo||0) * (t.hasTancada||0);
+  const litrosLote    = (t.caldo||0) * (t.hasLote||0);
+  const prodHa = t.prods.reduce((a,p)=>a + (p.n && p.d ? p.d : 0), 0);
+  // los adyuvantes vienen por 100 L de mezcla: se pasan a L/ha para poder sumarlos
+  const adyHa  = t.adys.reduce((a,p)=>a + (p.n && p.d ? p.d * (t.caldo||0) / 100 : 0), 0);
+  const aguaHa = (t.caldo||0) - prodHa - adyHa;
+  let n = null, ultimaHa = null, ultimaL = null;
+  if(t.hasTancada > 0 && t.hasLote > 0){
+    n = Math.ceil(t.hasLote / t.hasTancada);
+    ultimaHa = t.hasLote - (n-1)*t.hasTancada;
+    ultimaL  = ultimaHa * (t.caldo||0);
+  }
+  return { litrosTancada, litrosLote, prodHa, adyHa, aguaHa,
+           aguaTancada: aguaHa * (t.hasTancada||0),
+           aguaLote:    aguaHa * (t.hasLote||0),
+           n, ultimaHa, ultimaL,
+           excede: t.maxTanque > 0 && litrosTancada > t.maxTanque };
+}
+function renderTanc(){
+  const t = tLeer();
+  const c = calcTancadas(t);
+
+  $('tLitros').textContent = c.litrosTancada ? fmt(c.litrosTancada,0)+' L por tancada' : '—';
+  $('tLitros').style.color = c.excede ? '#fca5a5' : '';
+  $('tLitrosSub').textContent = c.litrosTancada
+    ? `${dec(t.hasTancada)} ha × ${dec(t.caldo)} L/ha` + (c.excede
+        ? ` — ¡pasa del tanque de ${dec(t.maxTanque)} L!` : '')
+    : 'Cargá el caldo y las hectáreas por tancada';
+  $('tMaxHint').textContent = (t.caldo && t.maxTanque)
+    ? `Con ${dec(t.maxTanque)} L de tanque entran ${dec(Math.floor(t.maxTanque/t.caldo*100)/100)} ha` : '';
+
+  $('tNum').textContent = c.n || '—';
+  $('tUltima').textContent = c.n
+    ? `${fmt(c.ultimaHa,1)} ha · ${fmt(c.ultimaL,0)} L` : '—';
+  $('tAguaTancada').textContent = c.aguaTancada > 0 ? fmt(c.aguaTancada,0)+' L' : '—';
+  $('tAguaLote').textContent    = c.aguaLote > 0 ? fmt(c.aguaLote,0)+' L' : '—';
+
+  // cantidad de cada producto por tancada y para el lote
+  t.prods.forEach((p,i)=>{
+    const e=$('tc-prod-'+i); if(!e) return;
+    if(!p.n || !p.d){ e.textContent=''; return; }
+    const un = unidadDe(p.n,'Fumigar');
+    const porT = cantidadTotal(p.d, t.hasTancada||0, un);
+    const porL = cantidadTotal(p.d, t.hasLote||0, un);
+    e.innerHTML = `${fmt(porT.v, porT.v<10?2:1)} ${porT.u}<br>` +
+                  `<span style="opacity:.65">${fmt(porL.v, porL.v<10?2:1)} ${porL.u}</span>`;
+  });
+  t.adys.forEach((p,i)=>{
+    const e=$('tc-ady-'+i); if(!e) return;
+    if(!p.n || !p.d){ e.textContent=''; return; }
+    const porT = cantidadTotal(p.d/100, c.litrosTancada, 'L');
+    const porL = cantidadTotal(p.d/100, c.litrosLote, 'L');
+    e.innerHTML = `${fmt(porT.v, porT.v<10?2:1)} ${porT.u}<br>` +
+                  `<span style="opacity:.65">${fmt(porL.v, porL.v<10?2:1)} ${porL.u}</span>`;
+  });
+
+  if(c.aguaHa < 0){
+    $('tLitrosSub').textContent += ' — los productos superan el caldo/ha';
+  }
+  save();
+}
+function limpiarTanc(){
+  if(!confirm('¿Limpiar el calculador?'))return;
+  S.tanc = tancDef(); save(); tCargarInputs(); renderTancListas(); renderTanc();
+}
+
+/* ---- pasar la mezcla al formulario de trabajo ---- */
+function volcarATrabajo(){
+  const t = tLeer();
+  const c = calcTancadas(t);
+  const prods = t.prods.filter(p=>p.n && p.d).map(p=>({n:p.n.trim(), d:p.d}));
+  // conversión: dosis por 100 L de mezcla -> dosis por hectárea
+  const adys  = t.adys.filter(p=>p.n && p.d).map(p=>({
+    n:p.n.trim(), d: +(p.d * (t.caldo||0) / 100).toFixed(4) }));
+  if(!prods.length && !adys.length) return toast('No hay productos cargados','err');
+
+  const editando = F.editId;
+  const cli=F.cliente, est=F.est, lote=F.lote, tipo=F.tipo, fecha=F.fecha;
+  resetF();
+  F.editId = editando;
+  F.fecha = fecha; F.cliente = cli; F.est = est; F.lote = lote;
+  F.tipo = tipo || 'Fumigar';
+  F.prods = prods; F.adys = adys;
+  F.precioManual = false;
+
+  $('fCaldo').value = dec(t.caldo);
+  if(t.hasLote) $('fHa').value = dec(t.hasLote);
+  F.agua = c.aguaHa > 0 ? +c.aguaHa.toFixed(3) : null;
+  F.tancadas = c.n;
+  F.maxTanque = t.maxTanque || null;
+
+  go('nuevo'); renderAll(); sugerirPrecio(); calcAll();
+  toast(`Mezcla pasada: ${prods.length} producto${prods.length===1?'':'s'}` +
+        (adys.length?` y ${adys.length} adyuvante${adys.length===1?'':'s'}`:''));
+}
+
+/* ================= CRONÓMETRO ================= */
+// se guarda la hora de arranque, no un contador: sobrevive a cerrar la app
+var cronoTick = null;
+function cronoToggle(){
+  if(!S.crono) S.crono = {};
+  if(S.crono.inicio){
+    const h = (Date.now() - S.crono.inicio) / 3600000;
+    S.crono.acumulado = (S.crono.acumulado || 0) + h;
+    S.crono.inicio = null;
+    $('fHoras').value = dec(+S.crono.acumulado.toFixed(2));
+    toast(`Parado en ${cronoTexto(S.crono.acumulado)}`);
+  } else {
+    S.crono.inicio = Date.now();
+    toast('Cronómetro en marcha');
+  }
+  save(); renderCrono();
+}
+function cronoReset(){
+  S.crono = {}; save(); renderCrono();
+  toast('Cronómetro en cero');
+}
+function cronoHoras(){
+  if(!S.crono) return 0;
+  let h = S.crono.acumulado || 0;
+  if(S.crono.inicio) h += (Date.now() - S.crono.inicio) / 3600000;
+  return h;
+}
+function cronoTexto(h){
+  const tot = Math.round(h*3600);
+  const hh = Math.floor(tot/3600), mm = Math.floor((tot%3600)/60), ss = tot%60;
+  return hh + ':' + String(mm).padStart(2,'0') + ':' + String(ss).padStart(2,'0');
+}
+function renderCrono(){
+  const box=$('crono'); if(!box) return;
+  const corriendo = !!(S.crono && S.crono.inicio);
+  const h = cronoHoras();
+  box.classList.toggle('on', corriendo);
+  $('crTiempo').textContent = cronoTexto(h);
+  $('crBtn').textContent = corriendo ? 'Parar' : (h>0 ? 'Seguir' : 'Arrancar');
+  $('crReset').style.display = (h>0 && !corriendo) ? 'block' : 'none';
+  $('crEstado').textContent = corriendo
+    ? 'Contando desde las ' + new Date(S.crono.inicio).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'})
+    : (h>0 ? 'Parado — ' + dec(+h.toFixed(2)) + ' h. Tocá "Seguir" o guardá el trabajo.'
+           : 'Cronómetro parado');
+
+  clearInterval(cronoTick);
+  if(corriendo) cronoTick = setInterval(()=>{
+    $('crTiempo').textContent = cronoTexto(cronoHoras());
+  }, 1000);
 }
 
 /* ================= PICKER GENÉRICO ================= */
@@ -872,7 +1253,10 @@ function verDetalle(id){
        <span class="qt" style="color:var(--txt);font-size:16px">${dec(p.d)||'—'}<small style="color:var(--dim)"> ${un}/ha</small>
        ${tot?`<small style="color:var(--dim)"> · ${fmt(tot.v, tot.v<10?2:(tot.v<100?1:0))} ${tot.u}</small>`:''}</span></div>`;
       }).join('')}
-      ${t.caldo?`<div class="hint">Caldo ${dec(t.caldo)} L/ha · ${fmt(t.caldo*t.ha)} L totales</div>`:''}</div>`:''}
+      ${t.caldo?`<div class="hint">Caldo ${dec(t.caldo)} L/ha · ${fmt(t.caldo*t.ha)} L totales</div>`:''}
+      ${t.agua?`<div class="hint">💧 Agua ${dec(t.agua)} L/ha · ${fmt(t.agua*t.ha)} L totales</div>`:''}
+      ${t.tancadas?`<div class="hint">🚁 ${t.tancadas} tancada${t.tancadas===1?'':'s'}${
+        t.maxTanque?` de hasta ${dec(t.maxTanque)} L`:''}</div>`:''}</div>`:''}
     <div class="row mb">
       <button class="chip${t.fact?' on':''}" style="justify-content:center" onclick="tog('${t.id}','fact')">
         ${t.fact?'✓ Facturado':'Facturado'}</button>
@@ -1016,6 +1400,7 @@ function renderNum(){
       <span>${esc(k)}</span><span style="color:var(--dim)">${fmtHa(v.ha)} ha · <b style="color:var(--txt)">$${fmt(v.$)}</b></span></div>`).join('')
     || '<div class="hint">Sin datos</div>';
   $('dataHint').textContent = `${S.trabajos.length} trabajos · ${S.gastos.length} gastos · ${S.recetas.length} mezclas guardadas`;
+  renderCostos();
   renderSync();
   $('backupHint').textContent = S.ultBackup
     ? 'Última copia: '+new Date(S.ultBackup).toLocaleDateString('es-UY')
@@ -1028,6 +1413,131 @@ function renderNum(){
         ? `<span style="color:var(--warn)">⚠ El navegador todavía no marcó los datos como permanentes. Si instalás la app en la pantalla de inicio suele activarse solo.${uso}</span>`
         : `<span style="color:var(--dim)">Este navegador no informa el estado del almacenamiento.${uso}</span>`;
   });
+}
+
+/* ================= COSTOS Y PRECIO ================= */
+// Mismo modelo que la planilla: la deuda del drone NO es costo operativo;
+// el equipo entra por amortización repartida entre las hectáreas de su vida útil.
+function paramDef(){
+  return { equipo:45000, vida:5, haAnio:5500, batCosto:4000, batHa:3000, margen:35 };
+}
+function params(){
+  if(!S.param) S.param = paramDef();
+  return S.param;
+}
+function toggleParam(){
+  const b=$('paramBox');
+  b.style.display = b.style.display==='none' ? 'block' : 'none';
+  if(b.style.display==='block') cargarParamInputs();
+}
+function cargarParamInputs(){
+  const p=params();
+  $('pEquipo').value=dec(p.equipo); $('pVida').value=dec(p.vida);
+  $('pHaAnio').value=dec(p.haAnio); $('pBatCosto').value=dec(p.batCosto);
+  $('pBatHa').value=dec(p.batHa);   $('pMargen').value=dec(p.margen);
+}
+function guardarParam(){
+  const p=params();
+  p.equipo=num($('pEquipo').value)||0; p.vida=num($('pVida').value)||0;
+  p.haAnio=num($('pHaAnio').value)||0; p.batCosto=num($('pBatCosto').value)||0;
+  p.batHa=num($('pBatHa').value)||0;   p.margen=num($('pMargen').value)||0;
+  save(); renderCostos();
+}
+function modeloCostos(){
+  const p = params();
+  const amortHa = (p.vida>0 && p.haAnio>0) ? p.equipo/(p.vida*p.haAnio) : 0;
+  const batHa   = p.batHa>0 ? p.batCosto/p.batHa : 0;
+
+  // años con gastos cargados en la app
+  const gastoAnio={}, haAnio={}, ingAnio={};
+  S.gastos.forEach(g=>{
+    const a=g.fecha.slice(0,4);
+    const usd = g.moneda==='USD' ? g.monto : g.monto/(S.tipoCambio||42);
+    gastoAnio[a]=(gastoAnio[a]||0)+usd;
+  });
+  S.trabajos.forEach(t=>{
+    const a=t.fecha.slice(0,4);
+    haAnio[a]=(haAnio[a]||0)+(t.ha||0);
+    ingAnio[a]=(ingAnio[a]||0)+((t.ha&&t.precio)?t.ha*t.precio:0);
+  });
+
+  const aniosConGasto = Object.keys(gastoAnio).filter(a=>gastoAnio[a]>0).sort();
+  const anioRef = aniosConGasto.length ? aniosConGasto[aniosConGasto.length-1] : null;
+  const operHa = (anioRef && haAnio[anioRef]) ? gastoAnio[anioRef]/haAnio[anioRef] : null;
+
+  const costoHa = (operHa!==null ? operHa : 0) + amortHa + batHa;
+  const margen = p.margen/100;
+  const sugerido = margen<1 ? costoHa/(1-margen) : null;
+
+  // precio promedio del último año con trabajos
+  const aniosTrab = Object.keys(haAnio).sort();
+  const anioAct = aniosTrab[aniosTrab.length-1];
+  const precioProm = (anioAct && haAnio[anioAct]) ? ingAnio[anioAct]/haAnio[anioAct] : null;
+
+  return { amortHa, batHa, operHa, costoHa, sugerido, margen,
+           anioRef, anioAct, precioProm, hayGastos: aniosConGasto.length>0,
+           haAnioRef: anioRef?haAnio[anioRef]:0, gastoRef: anioRef?gastoAnio[anioRef]:0 };
+}
+function renderCostos(){
+  const m = modeloCostos();
+  const av=$('costoAviso');
+
+  if(!m.hayGastos){
+    av.innerHTML = `<div class="aviso rojo">Todavía no cargaste gastos en la app, así que
+      el costo de abajo es solo el equipo. Te va a dar un precio sugerido más bajo del que
+      necesitás. Los gastos que ya tenés en la planilla no se leen desde acá: para el número
+      completo usá el menú <b>Análisis Drone</b> de la planilla.</div>`;
+  } else if(m.anioRef !== m.anioAct){
+    av.innerHTML = `<div class="aviso">El costo operativo es de ${m.anioRef}, el último año
+      con gastos cargados. En ${m.anioAct} hay trabajos pero no gastos.</div>`;
+  } else {
+    av.innerHTML = '';
+  }
+
+  const fila=(k,v,cls)=>`<div class="kv ${cls||''}"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+  let html='';
+  html += fila('Costo operativo', m.operHa!==null
+    ? `$${m.operHa.toFixed(2)}/ha` : 'sin gastos cargados');
+  html += fila('Amortización del equipo', `$${m.amortHa.toFixed(2)}/ha`);
+  html += fila('Baterías', `$${m.batHa.toFixed(2)}/ha`);
+  html += fila('Tu costo', `$${m.costoHa.toFixed(2)}/ha`, 'big');
+  if(m.sugerido) html += fila(`Precio para ganar ${Math.round(m.margen*100)}%`,
+    `$${m.sugerido.toFixed(2)}/ha`, 'big good');
+  if(m.precioProm!==null){
+    const est = m.precioProm >= (m.sugerido||0) ? 'good'
+              : (m.precioProm >= m.costoHa ? 'warn' : 'bad');
+    html += fila(`Lo que cobrás hoy (${m.anioAct})`, `$${m.precioProm.toFixed(2)}/ha`, est);
+    const dif = m.precioProm - m.costoHa;
+    html += `<div class="hint" style="margin-top:9px">${
+      dif < 0 ? '⚠ Estás cobrando por debajo de tu costo.'
+      : (m.precioProm < (m.sugerido||0)
+         ? `Ganás $${dif.toFixed(2)}/ha, pero para llegar al ${Math.round(m.margen*100)}% te faltan $${((m.sugerido||0)-m.precioProm).toFixed(2)}/ha.`
+         : `Estás $${(m.precioProm-(m.sugerido||0)).toFixed(2)}/ha por encima de tu objetivo.`)}</div>`;
+  }
+  $('costoResumen').innerHTML = html;
+
+  // margen por cliente
+  const cli={};
+  S.trabajos.forEach(t=>{
+    if(!t.cliente) return;
+    const c = cli[t.cliente] || (cli[t.cliente]={ha:0,ing:0,haSinPrecio:0});
+    c.ha += t.ha||0;
+    if(t.ha && t.precio) c.ing += t.ha*t.precio; else c.haSinPrecio += t.ha||0;
+  });
+  const lista = Object.entries(cli).map(([n,c])=>({
+    n, ha:c.ha, haSinPrecio:c.haSinPrecio,
+    precioHa: c.ha? c.ing/c.ha : 0,
+    margenHa: (c.ha? c.ing/c.ha : 0) - m.costoHa
+  })).sort((a,b)=>b.ha-a.ha).slice(0,15);
+
+  $('costoClientes').innerHTML = lista.map(c=>{
+    const dudoso = c.haSinPrecio > 0;
+    const col = dudoso ? 'var(--warn)' : (c.margenHa>=0?'var(--accent)':'var(--bad)');
+    return `<div class="kv"><span class="k">${esc(c.n)}
+      <span style="font-size:11.5px;opacity:.7">${fmtHa(c.ha)} ha${
+        dudoso?` · ${fmtHa(c.haSinPrecio)} sin precio`:''}</span></span>
+      <span class="v" style="color:${col}">${dudoso?'—':'$'+c.margenHa.toFixed(2)+'/ha'}</span></div>`;
+  }).join('') || '<div class="hint">Sin datos</div>';
 }
 
 /* ================= CAPA 3: SINCRONIZACIÓN CON EL SHEET ================= */
@@ -1130,7 +1640,8 @@ function csvCell(v){ if(v===null||v===undefined)return''; const s=String(v);
 function exportCSV(){
   const H=['Fecha','Trabajo','Cliente','Establecimiento','Lote','Hectáreas','Precio','Total','Viento','Caldo/ha',
     'Producto 1','Dosis P1','Producto 2','Dosis P2','Producto 3','Dosis P3','Producto 4','Dosis P4',
-    'Adyuvante 1','Dosis A1','Adyuvante 2','Dosis A2','Horas','Facturado','Cobrado','Key','Mes','Año','Operador','Ayudante'];
+    'Adyuvante 1','Dosis A1','Adyuvante 2','Dosis A2','Horas','Facturado','Cobrado','Key','Mes','Año','Operador','Ayudante',
+    'Agua/ha','Agua total','Tancadas','Tanque L'];
   const nuevos = S.trabajos.filter(t=>t.nuevo);
   const ts = nuevos.length?nuevos:S.trabajos;
   const rows = ts.map(t=>{
@@ -1139,7 +1650,8 @@ function exportCSV(){
       (t.ha&&t.precio)?+(t.ha*t.precio).toFixed(2):'', t.viento, t.caldo,
       p[0]?.n,p[0]?.d,p[1]?.n,p[1]?.d,p[2]?.n,p[2]?.d,p[3]?.n,p[3]?.d,
       a[0]?.n,a[0]?.d,a[1]?.n,a[1]?.d, t.horas, t.fact?'TRUE':'FALSE', t.cobr?'TRUE':'FALSE',
-      t.id, mesDe(t.fecha), t.fecha.slice(0,4), t.op, t.ay].map(csvCell).join(';');
+      t.id, mesDe(t.fecha), t.fecha.slice(0,4), t.op, t.ay,
+      t.agua, (t.agua&&t.ha)?+(t.agua*t.ha).toFixed(1):'', t.tancadas, t.maxTanque].map(csvCell).join(';');
   });
   dl(`trabajos_${hoyISO()}.csv`, [H.join(';'),...rows].join('\n'));
   if(nuevos.length){ nuevos.forEach(t=>t.nuevo=false); save(); updatePend(); }
@@ -1181,6 +1693,7 @@ function renderAll(){
   renderRecetas(); renderProds(); renderPersonas(); calcAll(); renderModoEdicion();
 }
 load(); resetF(); renderAll(); updatePend();
+renderCrono();
 pedirPersistencia();
 updateSyncPill(); renderSync(); chequearBackup();
 if(S.syncUrl) sincronizar();
