@@ -163,25 +163,27 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   justify-content:center;color:var(--bad);font-size:22px}
 .prodline .calc{flex:none;font-size:11.5px;color:var(--dim);font-weight:700;
   min-width:66px;text-align:right;line-height:1.25}
-/* fila de mezcla con cantidades por tancada y por lote */
-.mezfila{background:var(--card2);border:1.5px solid var(--line);border-radius:13px;
-  padding:10px 11px;margin-bottom:9px}
-.mezfila .top{display:flex;gap:8px;align-items:center}
+/* fila de mezcla compacta: entra todo sin scrollear */
+.mezfila{background:var(--card2);border:1.5px solid var(--line);border-radius:12px;
+  padding:7px 9px;margin-bottom:6px}
+.mezfila .top{display:flex;gap:6px;align-items:center}
 .mezfila .pn{flex:1.7;min-width:0}
 .mezfila .pd{flex:1;min-width:0}
-.mezfila .x{flex:none;width:34px;height:44px;display:flex;align-items:center;
-  justify-content:center;color:var(--bad);font-size:20px}
-.mezfila input{background:var(--card);border-color:var(--line)}
-.utoggle{display:flex;gap:0;flex:none;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
-.utoggle button{padding:0 9px;height:44px;font-size:12px;font-weight:700;color:var(--dim);background:var(--card)}
+.mezfila input{background:var(--card);border-color:var(--line);
+  height:40px;padding:0 10px;font-size:15px;border-radius:9px}
+.mezfila .x{flex:none;width:28px;height:40px;display:flex;align-items:center;
+  justify-content:center;color:var(--bad);font-size:19px}
+.utoggle{display:flex;gap:0;flex:none;border:1.5px solid var(--line);border-radius:9px;overflow:hidden}
+.utoggle button{padding:0 8px;height:40px;font-size:11.5px;font-weight:700;color:var(--dim);background:var(--card)}
 .utoggle button.on{background:#14351f;color:var(--accent)}
-.mezcant{display:flex;gap:14px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);
-  font-size:13px}
-.mezcant .b{flex:1}
-.mezcant .k{color:var(--dim);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
-.mezcant .v{font-weight:800;font-size:16px;color:var(--txt)}
+/* cantidades en UNA sola línea */
+.mezcant{display:flex;align-items:baseline;gap:6px;margin-top:6px;padding-top:6px;
+  border-top:1px solid var(--line);font-size:13px;flex-wrap:wrap}
+.mezcant .v{font-weight:800;font-size:15.5px;color:var(--txt)}
 .mezcant .v small{font-size:11px;color:var(--dim);font-weight:600}
 .mezcant .v small.uni{border-bottom:1px dotted var(--dim);cursor:pointer;padding-bottom:1px}
+.mezcant .k{color:var(--dim);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.mezcant .sep{color:var(--line);font-weight:700}
 .mezfila.esady{border-color:#2f5a4a}
 
 /* ---------- cronómetro ---------- */
@@ -325,6 +327,9 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
         <span class="qt" id="tAguaL" style="font-size:16px">—</span></div>
     </div>
   </div>
+
+  <datalist id="dl-p"></datalist>
+  <datalist id="dl-a"></datalist>
 
   <div class="card soloFum" id="cardMezcla">
     <div class="lbl">Mezcla</div>
@@ -882,9 +887,12 @@ function renderProds(){
   };
   $('fProds').innerHTML =
     F.prods.map((_,i)=>prod(i)).join('') +
-    F.adys.map((_,i)=>ady(i)).join('') +
-    `<datalist id="dl-p">${S.productos.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>` +
-    `<datalist id="dl-a">${S.adyuvantes.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>`;
+    F.adys.map((_,i)=>ady(i)).join('');
+}
+// los datalists se pueblan una sola vez, fuera de las filas (no se regeneran al tipear)
+function renderDatalists(){
+  $('dl-p').innerHTML = S.productos.map(p=>`<option value="${esc(p)}">`).join('');
+  $('dl-a').innerHTML = S.adyuvantes.map(p=>`<option value="${esc(p)}">`).join('');
 }
 
 /* ================= CÁLCULO DEL FORMULARIO ================= */
@@ -973,11 +981,13 @@ function calcFumigacion(ha){
     // la unidad de los productos es tocable para corregir L↔kg (los adyuvantes son siempre L)
     const uni = (u)=> esAdy ? '<small>'+u+'</small>'
       : `<small class="uni" onclick="cambiarUnidad(${esc(JSON.stringify(item.n))},${esc(JSON.stringify(F.tipo))})" title="Tocá para cambiar L/kg">${u}</small>`;
+    const ptS = pt ? fmt(pt.v, pt.v<10?2:(pt.v<100?1:0))+' '+uni(pt.u) : '—';
+    const plS = pl ? fmt(pl.v, pl.v<10?2:(pl.v<100?1:0))+' '+uni(pl.u) : '—';
+    // todo en una línea: [cantidad] tancada · [cantidad] lote
     e.innerHTML =
-      `<div class="b"><div class="k">Por tancada</div><div class="v">${
-        pt ? fmt(pt.v, pt.v<10?2:(pt.v<100?1:0))+' '+uni(pt.u) : '—'}</div></div>`
-     +`<div class="b"><div class="k">Todo el lote</div><div class="v">${
-        pl ? fmt(pl.v, pl.v<10?2:(pl.v<100?1:0))+' '+uni(pl.u) : '—'}</div></div>`;
+      `<span class="v">${ptS}</span><span class="k">tancada</span>`
+     +`<span class="sep">·</span>`
+     +`<span class="v">${plS}</span><span class="k">lote</span>`;
   };
   F.prods.forEach((p,i)=>pinta('mc-p-'+i, p, false));
   F.adys.forEach((a,i)=>pinta('mc-a-'+i, a, true));
@@ -1691,8 +1701,8 @@ function borrarTodo(){
 function renderAll(){
   $('fFecha').value = F.fecha;
   renderFechaChips(); renderTipos(); renderClientes(); renderEst(); renderLote();
-  renderRecetas(); renderRecetasSimple(); renderSimpleDatalist(); renderProds();
-  renderPersonas(); renderModoTipo(); calcAll(); renderModoEdicion();
+  renderRecetas(); renderRecetasSimple(); renderSimpleDatalist(); renderDatalists();
+  renderProds(); renderPersonas(); renderModoTipo(); calcAll(); renderModoEdicion();
 }
 load(); resetF(); renderAll(); updatePend();
 renderCrono();
