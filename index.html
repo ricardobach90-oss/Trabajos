@@ -163,6 +163,26 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   justify-content:center;color:var(--bad);font-size:22px}
 .prodline .calc{flex:none;font-size:11.5px;color:var(--dim);font-weight:700;
   min-width:66px;text-align:right;line-height:1.25}
+/* fila de mezcla con cantidades por tancada y por lote */
+.mezfila{background:var(--card2);border:1.5px solid var(--line);border-radius:13px;
+  padding:10px 11px;margin-bottom:9px}
+.mezfila .top{display:flex;gap:8px;align-items:center}
+.mezfila .pn{flex:1.7;min-width:0}
+.mezfila .pd{flex:1;min-width:0}
+.mezfila .x{flex:none;width:34px;height:44px;display:flex;align-items:center;
+  justify-content:center;color:var(--bad);font-size:20px}
+.mezfila input{background:var(--card);border-color:var(--line)}
+.utoggle{display:flex;gap:0;flex:none;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+.utoggle button{padding:0 9px;height:44px;font-size:12px;font-weight:700;color:var(--dim);background:var(--card)}
+.utoggle button.on{background:#14351f;color:var(--accent)}
+.mezcant{display:flex;gap:14px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);
+  font-size:13px}
+.mezcant .b{flex:1}
+.mezcant .k{color:var(--dim);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.mezcant .v{font-weight:800;font-size:16px;color:var(--txt)}
+.mezcant .v small{font-size:11px;color:var(--dim);font-weight:600}
+.mezcant .v small.uni{border-bottom:1px dotted var(--dim);cursor:pointer;padding-bottom:1px}
+.mezfila.esady{border-color:#2f5a4a}
 
 /* ---------- cronómetro ---------- */
 .crono{display:flex;align-items:center;gap:12px;background:var(--card2);
@@ -276,25 +296,33 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 
   <!-- ===== BLOQUE FUMIGAR: tancadas ===== -->
   <div class="card soloFum" id="cardTancadas">
-    <div class="lbl">🚁 Tancadas <span style="text-transform:none;font-weight:600;color:var(--dim)">— opcional</span></div>
+    <div class="lbl">🚁 La tancada</div>
     <div class="row mb">
       <div>
-        <div class="lbl">Tanque máximo (L)</div>
+        <div class="lbl">Caldo (L/ha)</div>
+        <input type="text" inputmode="decimal" id="fCaldo" placeholder="0" oninput="calcAll()">
+      </div>
+      <div>
+        <div class="lbl">Tanque máx. (L)</div>
         <input type="text" inputmode="decimal" id="fMaxTanque" placeholder="—" oninput="calcAll()">
       </div>
       <div>
-        <div class="lbl">Ha por tancada</div>
+        <div class="lbl">Ha/tancada</div>
         <input type="text" inputmode="decimal" id="fHasTancada" placeholder="—" oninput="F.tancManual=true;calcAll()">
       </div>
     </div>
     <button class="btn ghost sm" onclick="usarMaximo()">Llenar el tanque al máximo</button>
-    <div id="tancRes" style="display:none;margin-top:12px">
-      <div class="tankrow"><span class="nm">Litros por tancada</span>
-        <span class="qt" id="tLitros">—</span></div>
+    <div class="tank" id="tancRes" style="display:none;margin-top:12px">
+      <div class="tot" id="tLitros">—</div>
+      <div class="sub" id="tLitrosSub"></div>
       <div class="tankrow"><span class="nm">Tancadas para el lote</span>
         <span class="qt" id="tNum">—</span></div>
       <div class="tankrow"><span class="nm">Última tancada</span>
         <span class="qt" id="tUltima" style="font-size:15px">—</span></div>
+      <div class="tankrow"><span class="nm">💧 Agua por tancada</span>
+        <span class="qt" id="tAguaT" style="font-size:16px">—</span></div>
+      <div class="tankrow"><span class="nm">💧 Agua total del lote</span>
+        <span class="qt" id="tAguaL" style="font-size:16px">—</span></div>
     </div>
   </div>
 
@@ -306,22 +334,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       <button class="chip add sm" onclick="addProd()">+ Producto</button>
       <button class="chip add sm" onclick="addAdy()">+ Adyuvante</button>
     </div>
-    <div class="hint" style="margin-top:8px">Todo en dosis por hectárea. Abajo te digo cuánto cargar en el tanque.</div>
-    <div class="divide"></div>
-    <div class="lbl">Caldo por hectárea (L/ha)</div>
-    <div class="stepper">
-      <button onclick="bumpCaldo(-1)">−</button>
-      <input type="text" inputmode="decimal" id="fCaldo" placeholder="0" oninput="calcAll()">
-      <button onclick="bumpCaldo(1)">+</button>
-    </div>
-    <div class="hint" id="aguaHint"></div>
-  </div>
-
-  <div class="tank soloFum" id="tank" style="display:none">
-    <div class="lbl">🧪 Para cargar en el tanque</div>
-    <div class="tot" id="tkTot">—</div>
-    <div class="sub" id="tkSub"></div>
-    <div id="tkRows"></div>
+    <div class="hint" id="aguaHint" style="margin-top:8px"></div>
   </div>
 
   <div class="card">
@@ -634,7 +647,7 @@ function renderModoTipo(){
   document.querySelectorAll('.soloFum').forEach(e=>e.style.display = fum && F.tipo ? '' : 'none');
   document.querySelectorAll('.soloSimple').forEach(e=>e.style.display = simple ? '' : 'none');
   // el tank solo se muestra cuando corresponde y hay algo que mostrar (lo maneja calcAll)
-  if(!fum) $('tank').style.display='none';
+  if(!fum){ const tr=$('tancRes'); if(tr) tr.style.display='none'; }
   if(simple){
     $('simpleLbl').textContent = F.tipo==='Sembrar' ? 'Semilla'
       : (F.tipo==='Cebo' ? 'Cebo' : 'Fertilizante');
@@ -648,7 +661,7 @@ function editarTrabajo(id){
   F.editId = id; F.fecha = t.fecha; F.tipo = t.tipo || null;
   F.cliente = t.cliente || null; F.est = t.est||null; F.lote = t.lote||null;
   F.prods = (t.prods||[]).map(p=>({...p}));
-  F.adys  = (t.adys||[]).map(p=>({...p}));
+  F.adys  = (t.adys||[]).map(p=>({n:p.n, d:p.d, u:'ha'}));
   F.persona = t.ay||null; F.precioManual = true;
   F.agua = t.agua!==undefined?t.agua:null;
   F.tancadas = t.tancadas!==undefined?t.tancadas:null;
@@ -818,27 +831,58 @@ function renderRecetas(){
 }
 function aplicarReceta(id){
   const r = S.recetas.find(x=>x.id===id); if(!r) return;
-  F.prods = r.prods.map(p=>({...p}));
-  F.adys  = (r.adys||[]).map(a=>({...a}));
+  F.prods = r.prods.map(p=>({n:p.n, d:p.d}));
+  // las recetas guardan adyuvantes en dosis/ha: se cargan en esa unidad
+  F.adys  = (r.adys||[]).map(a=>({n:a.n, d:a.d, u:'ha'}));
   if(r.caldo) $('fCaldo').value = dec(r.caldo);
   if(r.tipo && !F.tipo){ F.tipo = r.tipo; renderTipos(); }
   renderProds(); calcAll(); closeSheet();
   toast('Mezcla cargada: '+r.nombre);
 }
 function addProd(){ F.prods.push({n:'',d:null}); renderProds(); }
-function addAdy(){ F.adys.push({n:'',d:null}); renderProds(); }
+function addAdy(){ F.adys.push({n:'',d:null,u:'100L'}); renderProds(); }  // adyuvante por defecto en /100 L
+function toggleUniAdy(i, u){ F.adys[i].u = u; renderProds(); calcAll(); }
+
+// dosis por hectárea de un item (para guardar y para el agua)
+function dosisHaDe(item, esAdy, caldo){
+  if(!item || item.d==null) return 0;
+  if(esAdy && item.u==='100L') return item.d * (caldo||0) / 100;
+  return item.d;
+}
 function renderProds(){
-  const line = (arr,i,kind)=>`
-    <div class="prodline">
-      <input class="pn" list="dl-${kind}" placeholder="${kind==='p'?'Producto':'Adyuvante'}"
-             value="${esc(arr[i].n)}" oninput="F.${kind==='p'?'prods':'adys'}[${i}].n=this.value;calcAll()">
-      <input class="pd" type="text" inputmode="decimal" placeholder="dosis/ha"
-             value="${dec(arr[i].d)}" oninput="F.${kind==='p'?'prods':'adys'}[${i}].d=num(this.value);calcAll()">
-      <button class="x" onclick="F.${kind==='p'?'prods':'adys'}.splice(${i},1);renderProds();calcAll()">×</button>
+  const prod = (i)=>{
+    const p=F.prods[i];
+    return `<div class="mezfila">
+      <div class="top">
+        <input class="pn" list="dl-p" placeholder="Producto" value="${esc(p.n)}"
+               oninput="F.prods[${i}].n=this.value;calcAll()">
+        <input class="pd" type="text" inputmode="decimal" placeholder="dosis/ha" value="${dec(p.d)}"
+               oninput="F.prods[${i}].d=num(this.value);calcAll()">
+        <button class="x" onclick="F.prods.splice(${i},1);renderProds();calcAll()">×</button>
+      </div>
+      <div class="mezcant" id="mc-p-${i}"></div>
     </div>`;
+  };
+  const ady = (i)=>{
+    const a=F.adys[i]; const u=a.u||'100L';
+    return `<div class="mezfila esady">
+      <div class="top">
+        <input class="pn" list="dl-a" placeholder="Adyuvante" value="${esc(a.n)}"
+               oninput="F.adys[${i}].n=this.value;calcAll()">
+        <input class="pd" type="text" inputmode="decimal" placeholder="dosis" value="${dec(a.d)}"
+               oninput="F.adys[${i}].d=num(this.value);calcAll()">
+        <div class="utoggle">
+          <button class="${u==='100L'?'on':''}" onclick="toggleUniAdy(${i},'100L')">/100L</button>
+          <button class="${u==='ha'?'on':''}" onclick="toggleUniAdy(${i},'ha')">/ha</button>
+        </div>
+        <button class="x" onclick="F.adys.splice(${i},1);renderProds();calcAll()">×</button>
+      </div>
+      <div class="mezcant" id="mc-a-${i}"></div>
+    </div>`;
+  };
   $('fProds').innerHTML =
-    F.prods.map((_,i)=>line(F.prods,i,'p')).join('') +
-    F.adys.map((_,i)=>line(F.adys,i,'a')).join('') +
+    F.prods.map((_,i)=>prod(i)).join('') +
+    F.adys.map((_,i)=>ady(i)).join('') +
     `<datalist id="dl-p">${S.productos.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>` +
     `<datalist id="dl-a">${S.adyuvantes.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>`;
 }
@@ -858,7 +902,7 @@ function calcAll(){
 
 // sembrar / cebo / fertilizar: un producto, su dosis, y la cantidad total
 function calcSimple(ha){
-  $('tank').style.display='none';
+  const tr=$('tancRes'); if(tr) tr.style.display='none';
   const p = F.prods[0];
   if(!p || !p.n){ $('sUnidad').textContent=''; $('sCantHint').textContent=''; F.agua=null; return; }
   const un = unidadDe(p.n, F.tipo);
@@ -876,32 +920,37 @@ function calcSimple(ha){
   F.agua = null; F.tancadas = null;
 }
 
-// fumigar: mezcla, agua, tanque y tancadas
+// fumigar: mezcla, agua, tanque y tancadas — con cantidades por tancada y por lote
 function calcFumigacion(ha){
   const caldo = num($('fCaldo').value);
+  const maxTanque = num($('fMaxTanque').value), hasTancada = num($('fHasTancada').value);
+  F.maxTanque = maxTanque;
 
-  // agua = caldo/ha menos todo lo líquido disuelto (productos y adyuvantes en L/ha)
+  const litrosTancada = (caldo>0 && hasTancada>0) ? caldo*hasTancada : 0;
+  const litrosLote = (caldo>0 && ha>0) ? caldo*ha : 0;
+
+  // agua = caldo/ha menos todo lo disuelto (productos L + adyuvantes pasados a L/ha)
   const prodL = F.prods.filter(p=>p.n && p.d && unidadDe(p.n,F.tipo,false)==='L')
     .reduce((a,p)=>a+p.d, 0);
-  const adyL = F.adys.filter(p=>p.n && p.d).reduce((a,p)=>a+p.d, 0);
+  const adyL = F.adys.filter(p=>p.n && p.d).reduce((a,p)=>a + dosisHaDe(p,true,caldo), 0);
+  let aguaHa=null;
   if(caldo){
-    const agua = caldo - prodL - adyL;
-    F.agua = +agua.toFixed(3);
-    $('aguaHint').innerHTML = agua>=0
-      ? `💧 Agua: <b>${dec(+agua.toFixed(2))} L/ha</b>` + (ha?` · ${fmt(agua*ha,0)} L en total`:'')
+    aguaHa = caldo - prodL - adyL;
+    F.agua = +aguaHa.toFixed(3);
+    $('aguaHint').innerHTML = aguaHa>=0
+      ? `💧 Agua: <b>${dec(+aguaHa.toFixed(2))} L/ha</b>`
       : `<span style="color:var(--bad)">Los productos suman más que el caldo/ha</span>`;
   } else { $('aguaHint').textContent=''; F.agua=null; }
 
-  // tancadas
-  const maxTanque = num($('fMaxTanque').value), hasTancada = num($('fHasTancada').value);
-  F.maxTanque = maxTanque;
+  // panel de la tancada
   const res = $('tancRes');
-  if(hasTancada>0 && caldo>0){
-    const litrosTancada = caldo * hasTancada;
+  if(litrosTancada>0){
     const excede = maxTanque>0 && litrosTancada>maxTanque;
     res.style.display='block';
-    $('tLitros').innerHTML = fmt(litrosTancada,0)+' L'
-      + (excede?` <span style="color:var(--bad);font-size:12px">pasa de ${dec(maxTanque)}</span>`:'');
+    $('tLitros').textContent = fmt(litrosTancada,0)+' L por tancada';
+    $('tLitros').style.color = excede ? '#fca5a5' : '';
+    $('tLitrosSub').textContent = `${dec(hasTancada)} ha × ${dec(caldo)} L/ha`
+      + (excede ? ` — ¡pasa del tanque de ${dec(maxTanque)} L!` : '');
     if(ha>0){
       const n = Math.ceil(ha/hasTancada);
       F.tancadas = n;
@@ -909,24 +958,29 @@ function calcFumigacion(ha){
       const ultHa = ha-(n-1)*hasTancada;
       $('tUltima').textContent = `${fmt(ultHa,1)} ha · ${fmt(ultHa*caldo,0)} L`;
     } else { F.tancadas=null; $('tNum').textContent='—'; $('tUltima').textContent='—'; }
+    $('tAguaT').textContent = (aguaHa!=null&&aguaHa>=0) ? fmt(aguaHa*hasTancada,0)+' L' : '—';
+    $('tAguaL').textContent = (aguaHa!=null&&aguaHa>=0&&ha) ? fmt(aguaHa*ha,0)+' L' : '—';
   } else { res.style.display='none'; F.tancadas=null; }
 
-  // panel del tanque: cuánto de cada cosa cargar
-  const items = [...F.prods.map(p=>({...p,ady:false})), ...F.adys.map(p=>({...p,ady:true}))]
-    .filter(p=>p.n && p.d);
-  const tk = $('tank');
-  if(!ha || !items.length){ tk.style.display='none'; return; }
-  tk.style.display='block';
-  const totalCaldo = caldo ? ha*caldo : null;
-  $('tkTot').textContent = totalCaldo ? fmt(totalCaldo,0)+' L de caldo' : fmtHa(ha)+' ha';
-  $('tkSub').textContent = totalCaldo ? `${fmtHa(ha)} ha × ${dec(caldo)} L/ha` : 'Sin caldo definido';
-  $('tkRows').innerHTML = items.map(p=>{
-    const {v,u} = cantidadTotal(p.d, ha, unidadDe(p.n, F.tipo, p.ady));
-    return `<div class="tankrow"><span class="nm">${esc(p.n)}${p.ady?' <span style="font-size:11px;opacity:.6">ady</span>':''}</span>
-      <span class="qt">${fmt(v, v<10?2:(v<100?1:0))}<small class="uni"
-        onclick="cambiarUnidad(${esc(JSON.stringify(p.n))},${esc(JSON.stringify(F.tipo))})"
-        title="Tocá para cambiar la unidad">${u}</small></span></div>`;
-  }).join('');
+  // cantidad de cada producto/adyuvante POR TANCADA y POR LOTE
+  const pinta = (elId, item, esAdy)=>{
+    const e=$(elId); if(!e) return;
+    if(!item.n || item.d==null){ e.innerHTML=''; return; }
+    const un = unidadDe(item.n, F.tipo, esAdy);
+    const dHa = dosisHaDe(item, esAdy, caldo);
+    const pt = hasTancada>0 ? cantidadTotal(dHa, hasTancada, un) : null;
+    const pl = ha>0 ? cantidadTotal(dHa, ha, un) : null;
+    // la unidad de los productos es tocable para corregir L↔kg (los adyuvantes son siempre L)
+    const uni = (u)=> esAdy ? '<small>'+u+'</small>'
+      : `<small class="uni" onclick="cambiarUnidad(${esc(JSON.stringify(item.n))},${esc(JSON.stringify(F.tipo))})" title="Tocá para cambiar L/kg">${u}</small>`;
+    e.innerHTML =
+      `<div class="b"><div class="k">Por tancada</div><div class="v">${
+        pt ? fmt(pt.v, pt.v<10?2:(pt.v<100?1:0))+' '+uni(pt.u) : '—'}</div></div>`
+     +`<div class="b"><div class="k">Todo el lote</div><div class="v">${
+        pl ? fmt(pl.v, pl.v<10?2:(pl.v<100?1:0))+' '+uni(pl.u) : '—'}</div></div>`;
+  };
+  F.prods.forEach((p,i)=>pinta('mc-p-'+i, p, false));
+  F.adys.forEach((a,i)=>pinta('mc-a-'+i, a, true));
 }
 function usarMaximo(){
   const caldo = num($('fCaldo').value), maxTanque = num($('fMaxTanque').value);
@@ -964,14 +1018,16 @@ function guardarTrabajo(){
   if(!ha)        return toast('Faltan las hectáreas','err');
 
   const simple = TIPOS_SIMPLES.includes(F.tipo);
+  const caldoF = simple ? null : num($('fCaldo').value);
   const t = {
     id: uid(), fecha: F.fecha, tipo: F.tipo, cliente: F.cliente,
     est: F.est||'', lote: F.lote||'', ha,
     precio: num($('fPrecio').value),
     viento: simple ? null : num($('fViento').value),
-    caldo: simple ? null : num($('fCaldo').value),
+    caldo: caldoF,
     prods: F.prods.filter(p=>p.n).map(p=>({n:p.n.trim(),d:p.d})),
-    adys:  simple ? [] : F.adys.filter(p=>p.n).map(p=>({n:p.n.trim(),d:p.d})),
+    // los adyuvantes se guardan SIEMPRE en dosis/ha (la planilla y el histórico así lo esperan)
+    adys:  simple ? [] : F.adys.filter(p=>p.n).map(p=>({n:p.n.trim(),d:+dosisHaDe(p,true,caldoF).toFixed(4)})),
     horas: num($('fHoras').value), fact:false, cobr:false,
     agua: simple ? null : F.agua,
     tancadas: simple ? null : F.tancadas,
@@ -1216,7 +1272,7 @@ function repetir(id){
   const t=S.trabajos.find(x=>x.id===id);
   resetF();
   F.fecha=hoyISO(); F.tipo=t.tipo; F.cliente=t.cliente; F.est=t.est||null; F.lote=t.lote||null;
-  F.prods=(t.prods||[]).map(p=>({...p})); F.adys=(t.adys||[]).map(p=>({...p}));
+  F.prods=(t.prods||[]).map(p=>({n:p.n,d:p.d})); F.adys=(t.adys||[]).map(p=>({n:p.n,d:p.d,u:'ha'}));
   F.persona=t.ay||null; F.precioManual=true;
   $('fHa').value=dec(t.ha); $('fPrecio').value=dec(t.precio); $('fCaldo').value=dec(t.caldo);
   $('fMaxTanque').value=dec(t.maxTanque); $('fHasTancada').value='';
