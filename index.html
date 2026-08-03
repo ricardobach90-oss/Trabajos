@@ -256,14 +256,57 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
     <div class="hint" id="haHint"></div>
   </div>
 
-  <div class="card" id="cardMezcla">
-    <div class="lbl">Mezcla / producto</div>
+  <!-- ===== BLOQUE SIMPLE: sembrar / cebo / fertilizar ===== -->
+  <div class="card soloSimple" id="cardSimple">
+    <div class="lbl" id="simpleLbl">Producto</div>
+    <div class="chips mb" id="fRecetasSimple"></div>
+    <div class="prodline">
+      <input class="pn" list="dl-simple" id="sProdNombre" placeholder="Producto"
+             oninput="simpleProd()">
+      <input class="pd" type="text" inputmode="decimal" id="sProdDosis"
+             placeholder="dosis/ha" oninput="simpleProd()">
+    </div>
+    <datalist id="dl-simple"></datalist>
+    <div class="divide"></div>
+    <div class="lbl">Cantidad total usada <span id="sUnidad" style="text-transform:none;font-weight:600"></span></div>
+    <input type="text" inputmode="decimal" id="sCantTotal" placeholder="—"
+           oninput="F.cantManual=true;calcAll()">
+    <div class="hint" id="sCantHint"></div>
+  </div>
+
+  <!-- ===== BLOQUE FUMIGAR: tancadas ===== -->
+  <div class="card soloFum" id="cardTancadas">
+    <div class="lbl">🚁 Tancadas <span style="text-transform:none;font-weight:600;color:var(--dim)">— opcional</span></div>
+    <div class="row mb">
+      <div>
+        <div class="lbl">Tanque máximo (L)</div>
+        <input type="text" inputmode="decimal" id="fMaxTanque" placeholder="—" oninput="calcAll()">
+      </div>
+      <div>
+        <div class="lbl">Ha por tancada</div>
+        <input type="text" inputmode="decimal" id="fHasTancada" placeholder="—" oninput="F.tancManual=true;calcAll()">
+      </div>
+    </div>
+    <button class="btn ghost sm" onclick="usarMaximo()">Llenar el tanque al máximo</button>
+    <div id="tancRes" style="display:none;margin-top:12px">
+      <div class="tankrow"><span class="nm">Litros por tancada</span>
+        <span class="qt" id="tLitros">—</span></div>
+      <div class="tankrow"><span class="nm">Tancadas para el lote</span>
+        <span class="qt" id="tNum">—</span></div>
+      <div class="tankrow"><span class="nm">Última tancada</span>
+        <span class="qt" id="tUltima" style="font-size:15px">—</span></div>
+    </div>
+  </div>
+
+  <div class="card soloFum" id="cardMezcla">
+    <div class="lbl">Mezcla</div>
     <div class="chips mb" id="fRecetas"></div>
     <div id="fProds"></div>
     <div class="row" style="margin-top:4px">
       <button class="chip add sm" onclick="addProd()">+ Producto</button>
       <button class="chip add sm" onclick="addAdy()">+ Adyuvante</button>
     </div>
+    <div class="hint" style="margin-top:8px">Todo en dosis por hectárea. Abajo te digo cuánto cargar en el tanque.</div>
     <div class="divide"></div>
     <div class="lbl">Caldo por hectárea (L/ha)</div>
     <div class="stepper">
@@ -274,7 +317,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
     <div class="hint" id="aguaHint"></div>
   </div>
 
-  <div class="tank" id="tank" style="display:none">
+  <div class="tank soloFum" id="tank" style="display:none">
     <div class="lbl">🧪 Para cargar en el tanque</div>
     <div class="tot" id="tkTot">—</div>
     <div class="sub" id="tkSub"></div>
@@ -291,7 +334,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 
     <div class="divide"></div>
     <div class="row mb">
-      <div>
+      <div class="soloFum" id="boxViento">
         <div class="lbl">Viento (km/h)</div>
         <input type="text" inputmode="decimal" id="fViento" placeholder="—">
       </div>
@@ -327,67 +370,6 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   </div>
   <div class="chips mb" id="histFiltros"></div>
   <div id="histList"></div>
-</div></div>
-
-<!-- ============ TANCADAS ============ -->
-<div class="view" id="v-tanc"><div class="wrap">
-
-  <div class="card">
-    <div class="row mb">
-      <div>
-        <div class="lbl">Caldo por ha (L/ha)</div>
-        <input type="text" inputmode="decimal" id="tCaldo" oninput="renderTanc()">
-      </div>
-      <div>
-        <div class="lbl">Hectáreas del lote</div>
-        <input type="text" inputmode="decimal" id="tHasLote" oninput="renderTanc()">
-      </div>
-    </div>
-    <div class="row">
-      <div>
-        <div class="lbl">Tanque máximo (L)</div>
-        <input type="text" inputmode="decimal" id="tMaxTanque" oninput="renderTanc()">
-      </div>
-      <div>
-        <div class="lbl">Hectáreas por tancada</div>
-        <input type="text" inputmode="decimal" id="tHasTancada" oninput="renderTanc()">
-      </div>
-    </div>
-    <button class="btn ghost sm" style="margin-top:11px" onclick="usarMaximo()">
-      Llenar el tanque al máximo</button>
-    <div class="hint" id="tMaxHint"></div>
-  </div>
-
-  <div class="tank" id="tancRes">
-    <div class="lbl">🚁 La tancada</div>
-    <div class="tot" id="tLitros">—</div>
-    <div class="sub" id="tLitrosSub"></div>
-    <div class="tankrow"><span class="nm">Tancadas para el lote</span>
-      <span class="qt" id="tNum">—</span></div>
-    <div class="tankrow"><span class="nm">Última tancada</span>
-      <span class="qt" id="tUltima" style="font-size:15px">—</span></div>
-    <div class="tankrow"><span class="nm">💧 Agua por tancada</span>
-      <span class="qt" id="tAguaTancada">—</span></div>
-    <div class="tankrow"><span class="nm">💧 Agua para todo el lote</span>
-      <span class="qt" id="tAguaLote">—</span></div>
-  </div>
-
-  <div class="card">
-    <div class="lbl">Productos <span style="text-transform:none;font-weight:600">— dosis por hectárea</span></div>
-    <div id="tProds"></div>
-    <button class="chip add sm" onclick="tAdd('prod')">+ Producto</button>
-  </div>
-
-  <div class="card">
-    <div class="lbl">Adyuvantes <span style="text-transform:none;font-weight:600">— dosis por 100 L de mezcla</span></div>
-    <div id="tAdys"></div>
-    <button class="chip add sm" onclick="tAdd('ady')">+ Adyuvante</button>
-  </div>
-
-  <button class="btn" onclick="volcarATrabajo()">→ Pasar esta mezcla a un trabajo</button>
-  <div class="hint" style="text-align:center;margin-top:8px">
-    Los adyuvantes se convierten de dosis/100 L a dosis/ha automáticamente.</div>
-  <button class="btn ghost" style="margin-top:12px" onclick="limpiarTanc()">Limpiar</button>
 </div></div>
 
 <!-- ============ GASTOS ============ -->
@@ -499,8 +481,6 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 
 <!-- ============ NAV ============ -->
 <nav class="nav">
-  <button data-v="tanc" onclick="go('tanc')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 3h12v5a6 6 0 01-6 6 6 6 0 01-6-6V3zM9 21h6M12 14v7"/></svg>Tancadas</button>
   <button class="on" data-v="nuevo" onclick="go('nuevo')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>Nuevo</button>
   <button data-v="hist" onclick="go('hist')">
@@ -535,7 +515,6 @@ function load(){
     if(raw){ S = JSON.parse(raw);
       // migración: versiones anteriores no guardaban la unidad de cada producto
       if(!S.unidades) S.unidades = {...SEED.unidades};
-      if(!S.tanc)  S.tanc  = tancDef();
       if(!S.param) S.param = paramDef();
       if(!S.crono) S.crono = {};
       return;
@@ -554,7 +533,7 @@ function load(){
     tipos: [...SEED.tipos],
     personas: [...SEED.personas],
     unidades: {...SEED.unidades},
-    tanc: tancDef(), param: paramDef(), crono: {}, tipoCambio: 42,
+    param: paramDef(), crono: {}, tipoCambio: 42,
     syncUrl: '', ultBackup: null,
     creado: new Date().toISOString()
   };
@@ -644,7 +623,23 @@ function cantidadTotal(dosis, ha, unidad){
 var F = {};
 function resetF(){ F = { fecha:hoyISO(), tipo:null, cliente:null, est:null, lote:null,
   prods:[], adys:[], persona:null, precioManual:false, editId:null,
-  agua:null, tancadas:null, maxTanque:null }; }
+  agua:null, tancadas:null, maxTanque:null, cantManual:false, tancManual:false }; }
+
+// fumigar es el único flujo "complejo" (mezcla, caldo, agua, tancadas)
+var TIPOS_SIMPLES = ['Sembrar','Cebo','Fertilizar'];
+function esFumigacion(){ return !F.tipo || F.tipo==='Fumigar' || F.tipo==='Relevamiento'; }
+function renderModoTipo(){
+  const fum = esFumigacion();
+  const simple = F.tipo && TIPOS_SIMPLES.includes(F.tipo);
+  document.querySelectorAll('.soloFum').forEach(e=>e.style.display = fum && F.tipo ? '' : 'none');
+  document.querySelectorAll('.soloSimple').forEach(e=>e.style.display = simple ? '' : 'none');
+  // el tank solo se muestra cuando corresponde y hay algo que mostrar (lo maneja calcAll)
+  if(!fum) $('tank').style.display='none';
+  if(simple){
+    $('simpleLbl').textContent = F.tipo==='Sembrar' ? 'Semilla'
+      : (F.tipo==='Cebo' ? 'Cebo' : 'Fertilizante');
+  }
+}
 
 /* ================= EDITAR UN TRABAJO YA CARGADO ================= */
 function editarTrabajo(id){
@@ -658,8 +653,18 @@ function editarTrabajo(id){
   F.agua = t.agua!==undefined?t.agua:null;
   F.tancadas = t.tancadas!==undefined?t.tancadas:null;
   F.maxTanque = t.maxTanque!==undefined?t.maxTanque:null;
+  F.cantManual = t.cantTotal!=null;
   $('fHa').value=dec(t.ha); $('fPrecio').value=dec(t.precio); $('fCaldo').value=dec(t.caldo);
   $('fViento').value=dec(t.viento); $('fHoras').value=dec(t.horas);
+  $('fMaxTanque').value=dec(t.maxTanque);
+  // reconstruir el nº de ha por tancada desde lo guardado
+  if(t.tancadas && t.ha) $('fHasTancada').value = dec(+(t.ha/t.tancadas).toFixed(2)); else $('fHasTancada').value='';
+  // campos del flujo simple
+  if(TIPOS_SIMPLES.includes(t.tipo) && t.prods && t.prods[0]){
+    $('sProdNombre').value = t.prods[0].n;
+    $('sProdDosis').value = dec(t.prods[0].d);
+    $('sCantTotal').value = dec(t.cantTotal);
+  }
   closeSheet(); go('nuevo'); renderAll(); renderModoEdicion();
   window.scrollTo(0,0);
 }
@@ -682,8 +687,7 @@ function cancelarEdicion(){
 }
 
 /* ================= NAVEGACIÓN ================= */
-var TTL = {nuevo:'Nuevo trabajo', tanc:'Tancadas', hist:'Historial',
-           gastos:'Gastos', num:'Números'};
+var TTL = {nuevo:'Nuevo trabajo', hist:'Historial', gastos:'Gastos', num:'Números'};
 function go(v){
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
   $('v-'+v).classList.add('on');
@@ -693,7 +697,6 @@ function go(v){
   if(v==='hist') renderHist();
   if(v==='num') renderNum();
   if(v==='gastos') renderGastos();
-  if(v==='tanc'){ tCargarInputs(); renderTancListas(); renderTanc(); }
   if(v==='nuevo') renderCrono();
 }
 
@@ -714,12 +717,39 @@ function renderTipos(){
 }
 function pickTipo(t){
   F.tipo = F.tipo===t ? null : t;
-  if(F.tipo){
+  if(F.tipo && esFumigacion()){
     const c = CALDO_DEF[F.tipo];
     if(c && !$('fCaldo').value) $('fCaldo').value = dec(c);
-    if(F.tipo!=='Fumigar' && !CALDO_DEF[F.tipo]) $('fCaldo').value='';
   }
-  renderTipos(); renderRecetas(); sugerirPrecio(); calcAll();
+  renderModoTipo();
+  renderTipos(); renderRecetas(); renderRecetasSimple(); renderSimpleDatalist();
+  sugerirPrecio(); calcAll();
+}
+/* ---- flujo simple: sembrar / cebo / fertilizar ---- */
+function renderSimpleDatalist(){
+  $('dl-simple').innerHTML = S.productos.map(p=>`<option value="${esc(p)}">`).join('');
+}
+function simpleProd(){
+  const n = $('sProdNombre').value.trim();
+  const dd = num($('sProdDosis').value);
+  F.prods = n ? [{n, d:dd}] : [];
+  F.adys = [];
+  calcAll();
+}
+function renderRecetasSimple(){
+  if(!F.tipo || !TIPOS_SIMPLES.includes(F.tipo)){ return; }
+  let rs = S.recetas.filter(r=>r.tipo===F.tipo && r.prods && r.prods.length===1);
+  rs.sort((a,b)=>b.usos - a.usos);
+  $('fRecetasSimple').innerHTML = rs.slice(0,8).map(r=>{
+    const p=r.prods[0];
+    return `<button class="chip sm" onclick="aplicarSimple(${esc(JSON.stringify(p.n))},${p.d==null?'null':p.d})">${esc(p.n)}${p.d!=null?` <span class="n">${dec(p.d)}</span>`:''}</button>`;
+  }).join('');
+}
+function aplicarSimple(nombre, dosis){
+  $('sProdNombre').value = nombre;
+  $('sProdDosis').value = dec(dosis);
+  F.cantManual = false;
+  simpleProd();
 }
 
 /* ================= CLIENTE / EST / LOTE ================= */
@@ -813,26 +843,75 @@ function renderProds(){
     `<datalist id="dl-a">${S.adyuvantes.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>`;
 }
 
-/* ================= CALCULADORA DE TANQUE ================= */
+/* ================= CÁLCULO DEL FORMULARIO ================= */
 function calcAll(){
-  const ha = num($('fHa').value), caldo = num($('fCaldo').value), precio = num($('fPrecio').value);
+  const ha = num($('fHa').value), precio = num($('fPrecio').value);
   $('fTotal').textContent = (ha&&precio) ? '$'+fmt(ha*precio,0) : '—';
   const lotes = (F.cliente&&F.est) ? (S.jer[F.cliente][F.est]||{}) : {};
   const haRef = F.lote ? lotes[F.lote] : null;
   $('haHint').textContent = (haRef && ha && Math.abs(haRef-ha)>0.05)
     ? `Antes anotaste ${fmtHa(haRef)} ha en ${F.lote}` : '';
 
-  // agua = caldo/ha menos todo lo que va disuelto
-  const liq = [...F.prods,...F.adys].filter(p=>p.n && p.d &&
-    unidadDe(p.n, F.tipo, false)==='L').reduce((a,p)=>a+p.d, 0);
-  if(caldo && liq>=0){
-    const agua = caldo - liq;
+  if(F.tipo && TIPOS_SIMPLES.includes(F.tipo)) calcSimple(ha);
+  else calcFumigacion(ha);
+}
+
+// sembrar / cebo / fertilizar: un producto, su dosis, y la cantidad total
+function calcSimple(ha){
+  $('tank').style.display='none';
+  const p = F.prods[0];
+  if(!p || !p.n){ $('sUnidad').textContent=''; $('sCantHint').textContent=''; F.agua=null; return; }
+  const un = unidadDe(p.n, F.tipo);
+  $('sUnidad').textContent = `(${un==='kg'?'kilos':'litros'})`;
+  if(p.d && ha){
+    const calc = p.d * ha;
+    if(!F.cantManual) $('sCantTotal').value = dec(+calc.toFixed(1));
+    const cargada = num($('sCantTotal').value);
+    $('sCantHint').innerHTML = `${dec(p.d)} ${un}/ha × ${fmtHa(ha)} ha = <b>${fmt(calc,1)} ${un}</b>`
+      + (F.cantManual && cargada && Math.abs(cargada-calc)>0.1
+         ? ` · anotaste ${fmt(cargada,1)}` : '');
+  } else {
+    $('sCantHint').textContent = 'Cargá la dosis y las hectáreas';
+  }
+  F.agua = null; F.tancadas = null;
+}
+
+// fumigar: mezcla, agua, tanque y tancadas
+function calcFumigacion(ha){
+  const caldo = num($('fCaldo').value);
+
+  // agua = caldo/ha menos todo lo líquido disuelto (productos y adyuvantes en L/ha)
+  const prodL = F.prods.filter(p=>p.n && p.d && unidadDe(p.n,F.tipo,false)==='L')
+    .reduce((a,p)=>a+p.d, 0);
+  const adyL = F.adys.filter(p=>p.n && p.d).reduce((a,p)=>a+p.d, 0);
+  if(caldo){
+    const agua = caldo - prodL - adyL;
     F.agua = +agua.toFixed(3);
     $('aguaHint').innerHTML = agua>=0
       ? `💧 Agua: <b>${dec(+agua.toFixed(2))} L/ha</b>` + (ha?` · ${fmt(agua*ha,0)} L en total`:'')
       : `<span style="color:var(--bad)">Los productos suman más que el caldo/ha</span>`;
   } else { $('aguaHint').textContent=''; F.agua=null; }
 
+  // tancadas
+  const maxTanque = num($('fMaxTanque').value), hasTancada = num($('fHasTancada').value);
+  F.maxTanque = maxTanque;
+  const res = $('tancRes');
+  if(hasTancada>0 && caldo>0){
+    const litrosTancada = caldo * hasTancada;
+    const excede = maxTanque>0 && litrosTancada>maxTanque;
+    res.style.display='block';
+    $('tLitros').innerHTML = fmt(litrosTancada,0)+' L'
+      + (excede?` <span style="color:var(--bad);font-size:12px">pasa de ${dec(maxTanque)}</span>`:'');
+    if(ha>0){
+      const n = Math.ceil(ha/hasTancada);
+      F.tancadas = n;
+      $('tNum').textContent = n;
+      const ultHa = ha-(n-1)*hasTancada;
+      $('tUltima').textContent = `${fmt(ultHa,1)} ha · ${fmt(ultHa*caldo,0)} L`;
+    } else { F.tancadas=null; $('tNum').textContent='—'; $('tUltima').textContent='—'; }
+  } else { res.style.display='none'; F.tancadas=null; }
+
+  // panel del tanque: cuánto de cada cosa cargar
   const items = [...F.prods.map(p=>({...p,ady:false})), ...F.adys.map(p=>({...p,ady:true}))]
     .filter(p=>p.n && p.d);
   const tk = $('tank');
@@ -843,11 +922,19 @@ function calcAll(){
   $('tkSub').textContent = totalCaldo ? `${fmtHa(ha)} ha × ${dec(caldo)} L/ha` : 'Sin caldo definido';
   $('tkRows').innerHTML = items.map(p=>{
     const {v,u} = cantidadTotal(p.d, ha, unidadDe(p.n, F.tipo, p.ady));
-    return `<div class="tankrow"><span class="nm">${esc(p.n)}</span>
+    return `<div class="tankrow"><span class="nm">${esc(p.n)}${p.ady?' <span style="font-size:11px;opacity:.6">ady</span>':''}</span>
       <span class="qt">${fmt(v, v<10?2:(v<100?1:0))}<small class="uni"
         onclick="cambiarUnidad(${esc(JSON.stringify(p.n))},${esc(JSON.stringify(F.tipo))})"
         title="Tocá para cambiar la unidad">${u}</small></span></div>`;
   }).join('');
+}
+function usarMaximo(){
+  const caldo = num($('fCaldo').value), maxTanque = num($('fMaxTanque').value);
+  if(!caldo || !maxTanque) return toast('Cargá el caldo/ha y el tanque máximo','err');
+  const has = Math.floor((maxTanque/caldo)*100)/100;
+  $('fHasTancada').value = dec(has); F.tancManual = true;
+  calcAll();
+  toast(`Con ${dec(maxTanque)} L hacés ${dec(has)} ha por tancada`);
 }
 
 /* ================= PRECIO ================= */
@@ -876,15 +963,20 @@ function guardarTrabajo(){
   if(!F.cliente) return toast('Falta el cliente','err');
   if(!ha)        return toast('Faltan las hectáreas','err');
 
+  const simple = TIPOS_SIMPLES.includes(F.tipo);
   const t = {
     id: uid(), fecha: F.fecha, tipo: F.tipo, cliente: F.cliente,
     est: F.est||'', lote: F.lote||'', ha,
-    precio: num($('fPrecio').value), viento: num($('fViento').value),
-    caldo: num($('fCaldo').value),
+    precio: num($('fPrecio').value),
+    viento: simple ? null : num($('fViento').value),
+    caldo: simple ? null : num($('fCaldo').value),
     prods: F.prods.filter(p=>p.n).map(p=>({n:p.n.trim(),d:p.d})),
-    adys:  F.adys.filter(p=>p.n).map(p=>({n:p.n.trim(),d:p.d})),
+    adys:  simple ? [] : F.adys.filter(p=>p.n).map(p=>({n:p.n.trim(),d:p.d})),
     horas: num($('fHoras').value), fact:false, cobr:false,
-    agua: F.agua, tancadas: F.tancadas, maxTanque: F.maxTanque,
+    agua: simple ? null : F.agua,
+    tancadas: simple ? null : F.tancadas,
+    maxTanque: simple ? null : F.maxTanque,
+    cantTotal: simple ? num($('sCantTotal').value) : null,
     op:'', ay: F.persona||'', nuevo:true
   };
 
@@ -937,9 +1029,10 @@ function limpiarForm(manual){
   const cli=F.cliente, est=F.est, tipo=F.tipo;
   resetF();
   if(!manual){ F.cliente=cli; F.est=est; F.tipo=tipo; }  // mismo campo, otro lote
-  ['fHa','fPrecio','fViento','fHoras'].forEach(i=>$(i).value='');
+  ['fHa','fPrecio','fViento','fHoras','fHasTancada',
+   'sProdNombre','sProdDosis','sCantTotal'].forEach(i=>$(i).value='');
   F.agua=null; F.tancadas=null; F.maxTanque=null;
-  if(manual) $('fCaldo').value='';
+  if(manual){ $('fCaldo').value=''; $('fMaxTanque').value=''; }
   $('fFecha').value = F.fecha;
   renderAll(); renderModoEdicion();
   if(!manual) window.scrollTo(0,0);
@@ -949,161 +1042,6 @@ function updatePend(){
   const p = $('pendPill');
   p.style.display = n?'inline-block':'none';
   p.className = 'pill on'; p.textContent = n+' sin exportar';
-}
-
-/* ================= CALCULADOR DE TANCADAS ================= */
-function tancDef(){
-  return { caldo:15, hasLote:null, maxTanque:300, hasTancada:null,
-           prods:[{n:'',d:null}], adys:[] };
-}
-function tancEstado(){
-  if(!S.tanc) S.tanc = tancDef();
-  return S.tanc;
-}
-function tLeer(){
-  const t = tancEstado();
-  t.caldo      = num($('tCaldo').value);
-  t.hasLote    = num($('tHasLote').value);
-  t.maxTanque  = num($('tMaxTanque').value);
-  t.hasTancada = num($('tHasTancada').value);
-  return t;
-}
-function tCargarInputs(){
-  const t = tancEstado();
-  $('tCaldo').value      = dec(t.caldo);
-  $('tHasLote').value    = dec(t.hasLote);
-  $('tMaxTanque').value  = dec(t.maxTanque);
-  $('tHasTancada').value = dec(t.hasTancada);
-}
-function tAdd(kind){
-  const t = tancEstado();
-  (kind==='prod' ? t.prods : t.adys).push({n:'',d:null});
-  save(); renderTancListas(); renderTanc();
-}
-function renderTancListas(){
-  const t = tancEstado();
-  const linea = (arr,i,kind)=>`
-    <div class="prodline">
-      <input class="pn" list="dl-${kind==='prod'?'p':'a'}"
-             placeholder="${kind==='prod'?'Producto':'Adyuvante'}"
-             value="${esc(arr[i].n)}"
-             oninput="S.tanc.${kind==='prod'?'prods':'adys'}[${i}].n=this.value;save();renderTanc()">
-      <input class="pd" type="text" inputmode="decimal"
-             placeholder="${kind==='prod'?'L/ha':'/100 L'}"
-             value="${dec(arr[i].d)}"
-             oninput="S.tanc.${kind==='prod'?'prods':'adys'}[${i}].d=num(this.value);save();renderTanc()">
-      <span class="calc" id="tc-${kind}-${i}"></span>
-      <button class="x" onclick="S.tanc.${kind==='prod'?'prods':'adys'}.splice(${i},1);save();renderTancListas();renderTanc()">×</button>
-    </div>`;
-  $('tProds').innerHTML = t.prods.map((_,i)=>linea(t.prods,i,'prod')).join('')
-    + `<datalist id="dl-p">${S.productos.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>`;
-  $('tAdys').innerHTML  = t.adys.map((_,i)=>linea(t.adys,i,'ady')).join('')
-    + `<datalist id="dl-a">${S.adyuvantes.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>`;
-}
-function usarMaximo(){
-  const t = tLeer();
-  if(!t.caldo || !t.maxTanque) return toast('Cargá el caldo/ha y el tanque máximo','err');
-  t.hasTancada = Math.floor((t.maxTanque / t.caldo) * 100) / 100;
-  $('tHasTancada').value = dec(t.hasTancada);
-  save(); renderTanc();
-  toast(`Con ${dec(t.maxTanque)} L hacés ${dec(t.hasTancada)} ha por tancada`);
-}
-// una tancada llena = caldo/ha × ha por tancada
-function calcTancadas(t){
-  const litrosTancada = (t.caldo||0) * (t.hasTancada||0);
-  const litrosLote    = (t.caldo||0) * (t.hasLote||0);
-  const prodHa = t.prods.reduce((a,p)=>a + (p.n && p.d ? p.d : 0), 0);
-  // los adyuvantes vienen por 100 L de mezcla: se pasan a L/ha para poder sumarlos
-  const adyHa  = t.adys.reduce((a,p)=>a + (p.n && p.d ? p.d * (t.caldo||0) / 100 : 0), 0);
-  const aguaHa = (t.caldo||0) - prodHa - adyHa;
-  let n = null, ultimaHa = null, ultimaL = null;
-  if(t.hasTancada > 0 && t.hasLote > 0){
-    n = Math.ceil(t.hasLote / t.hasTancada);
-    ultimaHa = t.hasLote - (n-1)*t.hasTancada;
-    ultimaL  = ultimaHa * (t.caldo||0);
-  }
-  return { litrosTancada, litrosLote, prodHa, adyHa, aguaHa,
-           aguaTancada: aguaHa * (t.hasTancada||0),
-           aguaLote:    aguaHa * (t.hasLote||0),
-           n, ultimaHa, ultimaL,
-           excede: t.maxTanque > 0 && litrosTancada > t.maxTanque };
-}
-function renderTanc(){
-  const t = tLeer();
-  const c = calcTancadas(t);
-
-  $('tLitros').textContent = c.litrosTancada ? fmt(c.litrosTancada,0)+' L por tancada' : '—';
-  $('tLitros').style.color = c.excede ? '#fca5a5' : '';
-  $('tLitrosSub').textContent = c.litrosTancada
-    ? `${dec(t.hasTancada)} ha × ${dec(t.caldo)} L/ha` + (c.excede
-        ? ` — ¡pasa del tanque de ${dec(t.maxTanque)} L!` : '')
-    : 'Cargá el caldo y las hectáreas por tancada';
-  $('tMaxHint').textContent = (t.caldo && t.maxTanque)
-    ? `Con ${dec(t.maxTanque)} L de tanque entran ${dec(Math.floor(t.maxTanque/t.caldo*100)/100)} ha` : '';
-
-  $('tNum').textContent = c.n || '—';
-  $('tUltima').textContent = c.n
-    ? `${fmt(c.ultimaHa,1)} ha · ${fmt(c.ultimaL,0)} L` : '—';
-  $('tAguaTancada').textContent = c.aguaTancada > 0 ? fmt(c.aguaTancada,0)+' L' : '—';
-  $('tAguaLote').textContent    = c.aguaLote > 0 ? fmt(c.aguaLote,0)+' L' : '—';
-
-  // cantidad de cada producto por tancada y para el lote
-  t.prods.forEach((p,i)=>{
-    const e=$('tc-prod-'+i); if(!e) return;
-    if(!p.n || !p.d){ e.textContent=''; return; }
-    const un = unidadDe(p.n,'Fumigar');
-    const porT = cantidadTotal(p.d, t.hasTancada||0, un);
-    const porL = cantidadTotal(p.d, t.hasLote||0, un);
-    e.innerHTML = `${fmt(porT.v, porT.v<10?2:1)} ${porT.u}<br>` +
-                  `<span style="opacity:.65">${fmt(porL.v, porL.v<10?2:1)} ${porL.u}</span>`;
-  });
-  t.adys.forEach((p,i)=>{
-    const e=$('tc-ady-'+i); if(!e) return;
-    if(!p.n || !p.d){ e.textContent=''; return; }
-    const porT = cantidadTotal(p.d/100, c.litrosTancada, 'L');
-    const porL = cantidadTotal(p.d/100, c.litrosLote, 'L');
-    e.innerHTML = `${fmt(porT.v, porT.v<10?2:1)} ${porT.u}<br>` +
-                  `<span style="opacity:.65">${fmt(porL.v, porL.v<10?2:1)} ${porL.u}</span>`;
-  });
-
-  if(c.aguaHa < 0){
-    $('tLitrosSub').textContent += ' — los productos superan el caldo/ha';
-  }
-  save();
-}
-function limpiarTanc(){
-  if(!confirm('¿Limpiar el calculador?'))return;
-  S.tanc = tancDef(); save(); tCargarInputs(); renderTancListas(); renderTanc();
-}
-
-/* ---- pasar la mezcla al formulario de trabajo ---- */
-function volcarATrabajo(){
-  const t = tLeer();
-  const c = calcTancadas(t);
-  const prods = t.prods.filter(p=>p.n && p.d).map(p=>({n:p.n.trim(), d:p.d}));
-  // conversión: dosis por 100 L de mezcla -> dosis por hectárea
-  const adys  = t.adys.filter(p=>p.n && p.d).map(p=>({
-    n:p.n.trim(), d: +(p.d * (t.caldo||0) / 100).toFixed(4) }));
-  if(!prods.length && !adys.length) return toast('No hay productos cargados','err');
-
-  const editando = F.editId;
-  const cli=F.cliente, est=F.est, lote=F.lote, tipo=F.tipo, fecha=F.fecha;
-  resetF();
-  F.editId = editando;
-  F.fecha = fecha; F.cliente = cli; F.est = est; F.lote = lote;
-  F.tipo = tipo || 'Fumigar';
-  F.prods = prods; F.adys = adys;
-  F.precioManual = false;
-
-  $('fCaldo').value = dec(t.caldo);
-  if(t.hasLote) $('fHa').value = dec(t.hasLote);
-  F.agua = c.aguaHa > 0 ? +c.aguaHa.toFixed(3) : null;
-  F.tancadas = c.n;
-  F.maxTanque = t.maxTanque || null;
-
-  go('nuevo'); renderAll(); sugerirPrecio(); calcAll();
-  toast(`Mezcla pasada: ${prods.length} producto${prods.length===1?'':'s'}` +
-        (adys.length?` y ${adys.length} adyuvante${adys.length===1?'':'s'}`:''));
 }
 
 /* ================= CRONÓMETRO ================= */
@@ -1178,8 +1116,9 @@ function renderPick(){
   const q = $('pickQ').value.trim().toLowerCase();
   let opts = pickOpts();
   if(pickMode==='receta'){
+    const fn = 'aplicarReceta';
     const rs = opts.filter(r=>!q || r.nombre.toLowerCase().includes(q));
-    $('pickList').innerHTML = rs.map(r=>`<div class="item" onclick="aplicarReceta('${r.id}')">
+    $('pickList').innerHTML = rs.map(r=>`<div class="item" onclick="${fn}('${r.id}')">
       <div class="l"><div class="t1">${esc(r.nombre)}</div>
       <div class="t2">${[...r.prods,...(r.adys||[])].map(p=>p.n+' '+(p.d??'')).join(' · ')}</div></div>
       <div class="r"><div class="amt">${r.usos}×</div><div class="dt">${esc(r.tipo||'')}</div></div></div>`).join('')
@@ -1255,6 +1194,7 @@ function verDetalle(id){
       }).join('')}
       ${t.caldo?`<div class="hint">Caldo ${dec(t.caldo)} L/ha · ${fmt(t.caldo*t.ha)} L totales</div>`:''}
       ${t.agua?`<div class="hint">💧 Agua ${dec(t.agua)} L/ha · ${fmt(t.agua*t.ha)} L totales</div>`:''}
+      ${t.cantTotal?`<div class="hint">📦 Total usado: ${fmt(t.cantTotal,1)} ${t.prods&&t.prods[0]?unidadDe(t.prods[0].n,t.tipo):''}</div>`:''}
       ${t.tancadas?`<div class="hint">🚁 ${t.tancadas} tancada${t.tancadas===1?'':'s'}${
         t.maxTanque?` de hasta ${dec(t.maxTanque)} L`:''}</div>`:''}</div>`:''}
     <div class="row mb">
@@ -1279,7 +1219,12 @@ function repetir(id){
   F.prods=(t.prods||[]).map(p=>({...p})); F.adys=(t.adys||[]).map(p=>({...p}));
   F.persona=t.ay||null; F.precioManual=true;
   $('fHa').value=dec(t.ha); $('fPrecio').value=dec(t.precio); $('fCaldo').value=dec(t.caldo);
+  $('fMaxTanque').value=dec(t.maxTanque); $('fHasTancada').value='';
   $('fFecha').value=F.fecha; $('fViento').value=''; $('fHoras').value='';
+  if(TIPOS_SIMPLES.includes(t.tipo) && t.prods && t.prods[0]){
+    $('sProdNombre').value=t.prods[0].n; $('sProdDosis').value=dec(t.prods[0].d);
+    $('sCantTotal').value=''; F.cantManual=false;
+  }
   closeSheet(); go('nuevo'); renderAll();
   toast('Cargado — revisá y guardá');
 }
@@ -1641,7 +1586,7 @@ function exportCSV(){
   const H=['Fecha','Trabajo','Cliente','Establecimiento','Lote','Hectáreas','Precio','Total','Viento','Caldo/ha',
     'Producto 1','Dosis P1','Producto 2','Dosis P2','Producto 3','Dosis P3','Producto 4','Dosis P4',
     'Adyuvante 1','Dosis A1','Adyuvante 2','Dosis A2','Horas','Facturado','Cobrado','Key','Mes','Año','Operador','Ayudante',
-    'Agua/ha','Agua total','Tancadas','Tanque L'];
+    'Agua/ha','Agua total','Tancadas','Tanque L','Cant. total'];
   const nuevos = S.trabajos.filter(t=>t.nuevo);
   const ts = nuevos.length?nuevos:S.trabajos;
   const rows = ts.map(t=>{
@@ -1651,7 +1596,7 @@ function exportCSV(){
       p[0]?.n,p[0]?.d,p[1]?.n,p[1]?.d,p[2]?.n,p[2]?.d,p[3]?.n,p[3]?.d,
       a[0]?.n,a[0]?.d,a[1]?.n,a[1]?.d, t.horas, t.fact?'TRUE':'FALSE', t.cobr?'TRUE':'FALSE',
       t.id, mesDe(t.fecha), t.fecha.slice(0,4), t.op, t.ay,
-      t.agua, (t.agua&&t.ha)?+(t.agua*t.ha).toFixed(1):'', t.tancadas, t.maxTanque].map(csvCell).join(';');
+      t.agua, (t.agua&&t.ha)?+(t.agua*t.ha).toFixed(1):'', t.tancadas, t.maxTanque, t.cantTotal].map(csvCell).join(';');
   });
   dl(`trabajos_${hoyISO()}.csv`, [H.join(';'),...rows].join('\n'));
   if(nuevos.length){ nuevos.forEach(t=>t.nuevo=false); save(); updatePend(); }
@@ -1690,7 +1635,8 @@ function borrarTodo(){
 function renderAll(){
   $('fFecha').value = F.fecha;
   renderFechaChips(); renderTipos(); renderClientes(); renderEst(); renderLote();
-  renderRecetas(); renderProds(); renderPersonas(); calcAll(); renderModoEdicion();
+  renderRecetas(); renderRecetasSimple(); renderSimpleDatalist(); renderProds();
+  renderPersonas(); renderModoTipo(); calcAll(); renderModoEdicion();
 }
 load(); resetF(); renderAll(); updatePend();
 renderCrono();
