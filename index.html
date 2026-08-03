@@ -166,7 +166,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 /* fila de mezcla compacta: entra todo sin scrollear */
 .mezfila{background:var(--card2);border:1.5px solid var(--line);border-radius:12px;
   padding:7px 9px;margin-bottom:6px}
-.mezfila .top{display:flex;gap:6px;align-items:center}
+.mezfila .mrow{display:flex;gap:6px;align-items:center}
 .mezfila .pn{flex:1.7;min-width:0}
 .mezfila .pd{flex:1;min-width:0}
 .mezfila input{background:var(--card);border-color:var(--line);
@@ -858,7 +858,7 @@ function renderProds(){
   const prod = (i)=>{
     const p=F.prods[i];
     return `<div class="mezfila">
-      <div class="top">
+      <div class="mrow">
         <input class="pn" list="dl-p" placeholder="Producto" value="${esc(p.n)}"
                oninput="F.prods[${i}].n=this.value;calcAll()">
         <input class="pd" type="text" inputmode="decimal" placeholder="dosis/ha" value="${dec(p.d)}"
@@ -871,7 +871,7 @@ function renderProds(){
   const ady = (i)=>{
     const a=F.adys[i]; const u=a.u||'100L';
     return `<div class="mezfila esady">
-      <div class="top">
+      <div class="mrow">
         <input class="pn" list="dl-a" placeholder="Adyuvante" value="${esc(a.n)}"
                oninput="F.adys[${i}].n=this.value;calcAll()">
         <input class="pd" type="text" inputmode="decimal" placeholder="dosis" value="${dec(a.d)}"
