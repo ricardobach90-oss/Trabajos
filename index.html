@@ -431,33 +431,16 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       ⚙ Ajustar parámetros</button>
     <div id="paramBox" style="display:none;margin-top:14px">
       <div class="divide"></div>
-      <div class="lbl">Costo del drone y equipo (USD)</div>
-      <input type="text" inputmode="decimal" id="pEquipo" class="mb" oninput="guardarParam()">
-      <div class="row mb">
-        <div>
-          <div class="lbl">Vida útil (años)</div>
-          <input type="text" inputmode="decimal" id="pVida" oninput="guardarParam()">
-        </div>
-        <div>
-          <div class="lbl">Hectáreas por año</div>
-          <input type="text" inputmode="decimal" id="pHaAnio" oninput="guardarParam()">
-        </div>
-      </div>
-      <div class="row mb">
-        <div>
-          <div class="lbl">Juego de baterías (USD)</div>
-          <input type="text" inputmode="decimal" id="pBatCosto" oninput="guardarParam()">
-        </div>
-        <div>
-          <div class="lbl">Ha por juego</div>
-          <input type="text" inputmode="decimal" id="pBatHa" oninput="guardarParam()">
-        </div>
-      </div>
+      <div class="lbl">Alquiler del dron (USD/ha)</div>
+      <input type="text" inputmode="decimal" id="pAlquiler" class="mb" oninput="guardarParam()">
       <div class="lbl">Margen que querés ganar (%)</div>
       <input type="text" inputmode="decimal" id="pMargen" class="mb" oninput="guardarParam()">
-      <div class="hint">Los gastos que cargás en la app y los que ya tenés en la planilla
-        se suman como costo operativo. La deuda del drone no cuenta como costo: entra
-        por la amortización.</div>
+      <div class="divide"></div>
+      <div class="lbl">Pago a ayudantes (USD/ha)</div>
+      <div id="pTarifas"></div>
+      <div class="hint">El alquiler del dron se cuenta por cada hectárea de todos los trabajos.
+        El pago a cada ayudante se suma solo en los trabajos donde lo elegís a él. Los gastos
+        que cargás en la app son el costo operativo.</div>
     </div>
   </div>
 
@@ -534,6 +517,9 @@ function load(){
       // migración: versiones anteriores no guardaban la unidad de cada producto
       if(!S.unidades) S.unidades = {...SEED.unidades};
       if(!S.param) S.param = paramDef();
+      // migración: versiones con amortización/baterías → alquiler + tarifas
+      if(S.param.alquilerHa===undefined) S.param.alquilerHa = 1.5;
+      if(!S.param.tarifas) S.param.tarifas = { Elias:1.5 };
       if(!S.crono) S.crono = {};
       return;
     }
@@ -1427,13 +1413,15 @@ function renderNum(){
 }
 
 /* ================= COSTOS Y PRECIO ================= */
-// Mismo modelo que la planilla: la deuda del drone NO es costo operativo;
-// el equipo entra por amortización repartida entre las hectáreas de su vida útil.
+// Modelo de costos: el dron se alquila a un fijo por hectárea (reemplaza amortización
+// y baterías). El pago a ayudantes por hectárea se calcula solo desde los trabajos.
 function paramDef(){
-  return { equipo:45000, vida:5, haAnio:5500, batCosto:4000, batHa:3000, margen:35 };
+  return { alquilerHa:1.5, margen:35, tarifas:{ Elias:1.5 } };
 }
 function params(){
   if(!S.param) S.param = paramDef();
+  if(S.param.alquilerHa===undefined) S.param.alquilerHa = 1.5;   // migración desde amortización
+  if(!S.param.tarifas) S.param.tarifas = { Elias:1.5 };
   return S.param;
 }
 function toggleParam(){
@@ -1443,40 +1431,60 @@ function toggleParam(){
 }
 function cargarParamInputs(){
   const p=params();
-  $('pEquipo').value=dec(p.equipo); $('pVida').value=dec(p.vida);
-  $('pHaAnio').value=dec(p.haAnio); $('pBatCosto').value=dec(p.batCosto);
-  $('pBatHa').value=dec(p.batHa);   $('pMargen').value=dec(p.margen);
+  $('pAlquiler').value=dec(p.alquilerHa);
+  $('pMargen').value=dec(p.margen);
+  // una fila de tarifa por cada persona conocida
+  $('pTarifas').innerHTML = S.personas.map(n=>
+    `<div class="kv"><span class="k">${esc(n)}</span>
+      <span style="display:flex;align-items:center;gap:6px">
+        <input type="text" inputmode="decimal" style="width:80px;text-align:right"
+               value="${dec(p.tarifas[n]||0)}"
+               oninput="setTarifa(${esc(JSON.stringify(n))}, this.value)">
+        <span style="font-size:12px;color:var(--dim)">USD/ha</span></span></div>`).join('')
+    || '<div class="hint">Todavía no hay ayudantes cargados</div>';
+}
+function setTarifa(nombre, v){
+  const p=params(); p.tarifas[nombre] = num(v)||0; save(); renderCostos();
 }
 function guardarParam(){
   const p=params();
-  p.equipo=num($('pEquipo').value)||0; p.vida=num($('pVida').value)||0;
-  p.haAnio=num($('pHaAnio').value)||0; p.batCosto=num($('pBatCosto').value)||0;
-  p.batHa=num($('pBatHa').value)||0;   p.margen=num($('pMargen').value)||0;
+  p.alquilerHa=num($('pAlquiler').value)||0;
+  p.margen=num($('pMargen').value)||0;
   save(); renderCostos();
 }
 function modeloCostos(){
   const p = params();
-  const amortHa = (p.vida>0 && p.haAnio>0) ? p.equipo/(p.vida*p.haAnio) : 0;
-  const batHa   = p.batHa>0 ? p.batCosto/p.batHa : 0;
+  const alquilerHa = p.alquilerHa||0;
 
-  // años con gastos cargados en la app
-  const gastoAnio={}, haAnio={}, ingAnio={};
+  // por MES: gastos (USD) y hectáreas. El costo operativo se mide solo en los meses
+  // que tienen gastos cargados, así el hueco de meses sin datos no ensucia el número.
+  const gastoMes={}, haMes={}, haAnio={}, ingAnio={}, ayudAnio={};
   S.gastos.forEach(g=>{
-    const a=g.fecha.slice(0,4);
+    const mes=g.fecha.slice(0,7);
     const usd = g.moneda==='USD' ? g.monto : g.monto/(S.tipoCambio||42);
-    gastoAnio[a]=(gastoAnio[a]||0)+usd;
+    gastoMes[mes]=(gastoMes[mes]||0)+usd;
   });
   S.trabajos.forEach(t=>{
-    const a=t.fecha.slice(0,4);
+    const mes=t.fecha.slice(0,7), a=t.fecha.slice(0,4);
+    haMes[mes]=(haMes[mes]||0)+(t.ha||0);
     haAnio[a]=(haAnio[a]||0)+(t.ha||0);
     ingAnio[a]=(ingAnio[a]||0)+((t.ha&&t.precio)?t.ha*t.precio:0);
+    const tar = t.ay ? (p.tarifas[t.ay]||0) : 0;
+    if(tar && t.ha) ayudAnio[a]=(ayudAnio[a]||0)+tar*t.ha;
   });
 
-  const aniosConGasto = Object.keys(gastoAnio).filter(a=>gastoAnio[a]>0).sort();
-  const anioRef = aniosConGasto.length ? aniosConGasto[aniosConGasto.length-1] : null;
-  const operHa = (anioRef && haAnio[anioRef]) ? gastoAnio[anioRef]/haAnio[anioRef] : null;
+  // meses con gastos cargados (de cualquier año)
+  const mesesMedidos = Object.keys(gastoMes).filter(m=>gastoMes[m]>0).sort();
+  const gastoMedido = mesesMedidos.reduce((a,m)=>a+gastoMes[m],0);
+  const haMedida    = mesesMedidos.reduce((a,m)=>a+(haMes[m]||0),0);
+  // costo operativo por hectárea: solo sobre esos meses
+  const operHa = haMedida>0 ? gastoMedido/haMedida : null;
 
-  const costoHa = (operHa!==null ? operHa : 0) + amortHa + batHa;
+  const anioRef = mesesMedidos.length ? mesesMedidos[mesesMedidos.length-1].slice(0,4) : null;
+  // pago a ayudantes: promedio del año de referencia (es una tarifa conocida)
+  const ayudHa = (anioRef && haAnio[anioRef]) ? (ayudAnio[anioRef]||0)/haAnio[anioRef] : 0;
+
+  const costoHa = (operHa!==null ? operHa : 0) + alquilerHa + ayudHa;
   const margen = p.margen/100;
   const sugerido = margen<1 ? costoHa/(1-margen) : null;
 
@@ -1485,32 +1493,38 @@ function modeloCostos(){
   const anioAct = aniosTrab[aniosTrab.length-1];
   const precioProm = (anioAct && haAnio[anioAct]) ? ingAnio[anioAct]/haAnio[anioAct] : null;
 
-  return { amortHa, batHa, operHa, costoHa, sugerido, margen,
-           anioRef, anioAct, precioProm, hayGastos: aniosConGasto.length>0,
-           haAnioRef: anioRef?haAnio[anioRef]:0, gastoRef: anioRef?gastoAnio[anioRef]:0 };
+  return { alquilerHa, ayudHa, operHa, costoHa, sugerido, margen,
+           anioRef, anioAct, precioProm, hayGastos: mesesMedidos.length>0,
+           haAnioRef: anioRef?haAnio[anioRef]:0, gastoRef: gastoMedido,
+           ayudRef: anioRef?(ayudAnio[anioRef]||0):0,
+           mesesMedidos, haMedida, nMeses: mesesMedidos.length };
 }
+// nombres cortos de mes para mostrar
+function mesCorto(ym){ const [y,m]=ym.split('-');
+  return ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+m]+' '+y.slice(2); }
 function renderCostos(){
   const m = modeloCostos();
   const av=$('costoAviso');
 
   if(!m.hayGastos){
     av.innerHTML = `<div class="aviso rojo">Todavía no cargaste gastos en la app, así que
-      el costo de abajo es solo el equipo. Te va a dar un precio sugerido más bajo del que
-      necesitás. Los gastos que ya tenés en la planilla no se leen desde acá: para el número
-      completo usá el menú <b>Análisis Drone</b> de la planilla.</div>`;
-  } else if(m.anioRef !== m.anioAct){
-    av.innerHTML = `<div class="aviso">El costo operativo es de ${m.anioRef}, el último año
-      con gastos cargados. En ${m.anioAct} hay trabajos pero no gastos.</div>`;
+      el costo de abajo es solo el alquiler del dron y los ayudantes. Te va a dar un precio
+      sugerido más bajo del que necesitás.</div>`;
   } else {
-    av.innerHTML = '';
+    // en qué meses se basa el costo operativo
+    const lista = m.mesesMedidos.map(mesCorto).join(', ');
+    av.innerHTML = `<div class="aviso">El costo operativo se calcula sobre los
+      ${m.nMeses} mes${m.nMeses===1?'':'es'} que tenés cargados (${lista}):
+      $${fmt(m.gastoRef,0)} en ${fmtHa(m.haMedida)} ha. Los demás meses no cuentan hasta que
+      cargues sus gastos.</div>`;
   }
 
   const fila=(k,v,cls)=>`<div class="kv ${cls||''}"><span class="k">${k}</span><span class="v">${v}</span></div>`;
   let html='';
   html += fila('Costo operativo', m.operHa!==null
     ? `$${m.operHa.toFixed(2)}/ha` : 'sin gastos cargados');
-  html += fila('Amortización del equipo', `$${m.amortHa.toFixed(2)}/ha`);
-  html += fila('Baterías', `$${m.batHa.toFixed(2)}/ha`);
+  html += fila('Alquiler del dron', `$${m.alquilerHa.toFixed(2)}/ha`);
+  if(m.ayudHa>0) html += fila('Pago a ayudantes', `$${m.ayudHa.toFixed(2)}/ha`);
   html += fila('Tu costo', `$${m.costoHa.toFixed(2)}/ha`, 'big');
   if(m.sugerido) html += fila(`Precio para ganar ${Math.round(m.margen*100)}%`,
     `$${m.sugerido.toFixed(2)}/ha`, 'big good');
