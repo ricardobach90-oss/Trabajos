@@ -521,6 +521,7 @@ function load(){
       if(S.param.alquilerHa===undefined) S.param.alquilerHa = 1.5;
       if(!S.param.tarifas) S.param.tarifas = { Elias:1.5 };
       if(!S.crono) S.crono = {};
+      if(migrarCategorias()) save();
       return;
     }
   }catch(e){}
@@ -568,7 +569,22 @@ async function estadoAlmacenamiento(){
 
 /* ================= HELPERS ================= */
 var $ = id => document.getElementById(id);
-var CATS = ['Combustible','Comida','Repuestos','Peaje','Insumos','Otro'];
+var CATS = ['Nafta','Gasoil','Aceite','Comida','Repuestos','Peaje','Insumos','Otro'];
+// reclasifica los gastos viejos 'Combustible' según la nota (nafta/gasoil/aceite)
+function migrarCategorias(){
+  if(!S.gastos) return;
+  let cambios=0;
+  S.gastos.forEach(g=>{
+    if(g.cat!=='Combustible' && g.cat!=='Combustible y aceite') return;
+    const n=(g.nota||'').toLowerCase();
+    let nueva=null;
+    if(/gasoil|gas oil|gasol|diesel|dísel|gazoil/.test(n)) nueva='Gasoil';
+    else if(/nafta/.test(n)) nueva='Nafta';
+    else if(/aceite|lubric/.test(n)) nueva='Aceite';
+    if(nueva){ g.cat=nueva; g.sync=null; cambios++; }  // sync:null para corregir la planilla
+  });
+  return cambios;
+}
 var CALDO_DEF = SEED.caldoDef || {};
 
 function toast(m, cls){ const t=$('toast'); t.textContent=m; t.className='toast on'+(cls?' '+cls:'');
