@@ -276,6 +276,13 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       <button onclick="bumpHa(1)">+</button>
     </div>
     <div class="hint" id="haHint"></div>
+
+    <div id="boxKm" style="display:none;margin-top:14px">
+      <div class="lbl">Distancia a la base (km, solo ida)</div>
+      <input type="text" inputmode="decimal" id="fKm" placeholder="—"
+             oninput="F.kmManual=true;calcAll()">
+      <div class="hint" id="kmHint"></div>
+    </div>
   </div>
 
   <!-- ===== BLOQUE SIMPLE: sembrar / cebo / fertilizar ===== -->
@@ -438,10 +445,27 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       <div class="divide"></div>
       <div class="lbl">Pago a ayudantes (USD/ha)</div>
       <div id="pTarifas"></div>
+      <div class="divide"></div>
+      <div class="lbl">Gasoil del vehículo (para el traslado)</div>
+      <div class="row mb">
+        <div>
+          <div class="lbl">Rendimiento (km/L)</div>
+          <input type="text" inputmode="decimal" id="pRendimiento" oninput="guardarParam()">
+        </div>
+        <div>
+          <div class="lbl">Precio gasoil (USD/L)</div>
+          <input type="text" inputmode="decimal" id="pPrecioGasoil" oninput="guardarParam()">
+        </div>
+      </div>
       <div class="hint">El alquiler del dron se cuenta por cada hectárea de todos los trabajos.
-        El pago a cada ayudante se suma solo en los trabajos donde lo elegís a él. Los gastos
-        que cargás en la app son el costo operativo.</div>
+        El pago a cada ayudante se suma solo en los trabajos donde lo elegís a él. El gasoil
+        del vehículo se estima con la distancia de cada trabajo (ida y vuelta).</div>
     </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">🚗 Traslado por establecimiento</div>
+    <div id="trasladoLista"></div>
   </div>
 
   <div class="card">
@@ -521,6 +545,7 @@ function load(){
       if(S.param.alquilerHa===undefined) S.param.alquilerHa = 1.5;
       if(!S.param.tarifas) S.param.tarifas = { Elias:1.5 };
       if(!S.crono) S.crono = {};
+      if(!S.distancias) S.distancias = {};
       if(migrarCategorias()) save();
       return;
     }
@@ -538,7 +563,7 @@ function load(){
     tipos: [...SEED.tipos],
     personas: [...SEED.personas],
     unidades: {...SEED.unidades},
-    param: paramDef(), crono: {}, tipoCambio: 42,
+    param: paramDef(), crono: {}, tipoCambio: 42, distancias: {},
     syncUrl: '', ultBackup: null,
     creado: new Date().toISOString()
   };
@@ -643,7 +668,7 @@ function cantidadTotal(dosis, ha, unidad){
 var F = {};
 function resetF(){ F = { fecha:hoyISO(), tipo:null, cliente:null, est:null, lote:null,
   prods:[], adys:[], persona:null, precioManual:false, editId:null,
-  agua:null, tancadas:null, maxTanque:null, cantManual:false, tancManual:false }; }
+  agua:null, tancadas:null, maxTanque:null, cantManual:false, tancManual:false, kmManual:false }; }
 
 // fumigar es el único flujo "complejo" (mezcla, caldo, agua, tancadas)
 var TIPOS_SIMPLES = ['Sembrar','Cebo','Fertilizar'];
@@ -677,6 +702,7 @@ function editarTrabajo(id){
   $('fHa').value=dec(t.ha); $('fPrecio').value=dec(t.precio); $('fCaldo').value=dec(t.caldo);
   $('fViento').value=dec(t.viento); $('fHoras').value=dec(t.horas);
   $('fMaxTanque').value=dec(t.maxTanque);
+  $('fKm').value=dec(t.km); F.kmManual = t.km!=null;
   // reconstruir el nº de ha por tancada desde lo guardado
   if(t.tancadas && t.ha) $('fHasTancada').value = dec(+(t.ha/t.tancadas).toFixed(2)); else $('fHasTancada').value='';
   // campos del flujo simple
@@ -802,7 +828,26 @@ function renderEst(){
 }
 function pickEst(e){
   F.est = F.est===e?null:e; F.lote=null;
-  renderEst(); renderLote(); calcAll();
+  // autocompletar la distancia guardada de ese establecimiento
+  if(F.est){
+    const km = S.distancias[F.cliente+'|'+F.est];
+    F.kmManual = false;
+    $('fKm').value = km!=null ? dec(km) : '';
+  }
+  renderEst(); renderLote(); renderKm(); calcAll();
+}
+function renderKm(){
+  const box=$('boxKm');
+  if(!box) return;
+  box.style.display = (F.cliente && F.est) ? 'block' : 'none';
+  const km = num($('fKm').value);
+  if(km){
+    const c = costoTraslado(km);
+    $('kmHint').innerHTML = `Ida y vuelta ${dec(km*2)} km · gasoil estimado <b>$${c.toFixed(2)}</b>`
+      + (S.distancias[F.cliente+'|'+F.est]!=null && !F.kmManual ? ' · guardada de antes' : '');
+  } else {
+    $('kmHint').textContent = 'Se guarda para este establecimiento y se autocompleta la próxima.';
+  }
 }
 function renderLote(){
   const box=$('boxLote');
@@ -908,6 +953,7 @@ function calcAll(){
 
   if(F.tipo && TIPOS_SIMPLES.includes(F.tipo)) calcSimple(ha);
   else calcFumigacion(ha);
+  renderKm();
 }
 
 // sembrar / cebo / fertilizar: un producto, su dosis, y la cantidad total
@@ -1045,6 +1091,7 @@ function guardarTrabajo(){
     tancadas: simple ? null : F.tancadas,
     maxTanque: simple ? null : F.maxTanque,
     cantTotal: simple ? num($('sCantTotal').value) : null,
+    km: num($('fKm').value),
     op:'', ay: F.persona||'', nuevo:true
   };
 
@@ -1071,6 +1118,8 @@ function guardarTrabajo(){
   t.prods.forEach(p=>{ if(!S.productos.includes(p.n)) S.productos.push(p.n); });
   t.adys.forEach(p=>{ if(!S.adyuvantes.includes(p.n)) S.adyuvantes.push(p.n); });
   if(t.ay && !S.personas.includes(t.ay)) S.personas.push(t.ay);
+  // guardar la distancia del establecimiento para autocompletar la próxima
+  if(t.km!=null && t.est) S.distancias[t.cliente+'|'+t.est] = t.km;
 
   // receta: si la mezcla ya existe suma uso, si no la crea
   const firma = j=>[...j.prods,...j.adys].map(p=>p.n+':'+p.d).sort().join('|');
@@ -1100,7 +1149,8 @@ function limpiarForm(manual){
   ['fHa','fPrecio','fViento','fHoras','fHasTancada',
    'sProdNombre','sProdDosis','sCantTotal'].forEach(i=>$(i).value='');
   F.agua=null; F.tancadas=null; F.maxTanque=null;
-  if(manual){ $('fCaldo').value=''; $('fMaxTanque').value=''; }
+  if(manual){ $('fCaldo').value=''; $('fMaxTanque').value=''; $('fKm').value=''; }
+  else if(F.est){ const km=S.distancias[F.cliente+'|'+F.est]; $('fKm').value = km!=null?dec(km):''; }
   $('fFecha').value = F.fecha;
   renderAll(); renderModoEdicion();
   if(!manual) window.scrollTo(0,0);
@@ -1288,6 +1338,7 @@ function repetir(id){
   F.persona=t.ay||null; F.precioManual=true;
   $('fHa').value=dec(t.ha); $('fPrecio').value=dec(t.precio); $('fCaldo').value=dec(t.caldo);
   $('fMaxTanque').value=dec(t.maxTanque); $('fHasTancada').value='';
+  $('fKm').value=dec(t.km); F.kmManual=t.km!=null;
   $('fFecha').value=F.fecha; $('fViento').value=''; $('fHoras').value='';
   if(TIPOS_SIMPLES.includes(t.tipo) && t.prods && t.prods[0]){
     $('sProdNombre').value=t.prods[0].n; $('sProdDosis').value=dec(t.prods[0].d);
@@ -1414,6 +1465,7 @@ function renderNum(){
     || '<div class="hint">Sin datos</div>';
   $('dataHint').textContent = `${S.trabajos.length} trabajos · ${S.gastos.length} gastos · ${S.recetas.length} mezclas guardadas`;
   renderCostos();
+  renderTraslado();
   renderSync();
   $('backupHint').textContent = S.ultBackup
     ? 'Última copia: '+new Date(S.ultBackup).toLocaleDateString('es-UY')
@@ -1432,13 +1484,21 @@ function renderNum(){
 // Modelo de costos: el dron se alquila a un fijo por hectárea (reemplaza amortización
 // y baterías). El pago a ayudantes por hectárea se calcula solo desde los trabajos.
 function paramDef(){
-  return { alquilerHa:1.5, margen:35, tarifas:{ Elias:1.5 } };
+  return { alquilerHa:1.5, margen:35, tarifas:{ Elias:1.5 }, rendimiento:8, precioGasoil:1.3 };
 }
 function params(){
   if(!S.param) S.param = paramDef();
   if(S.param.alquilerHa===undefined) S.param.alquilerHa = 1.5;   // migración desde amortización
   if(!S.param.tarifas) S.param.tarifas = { Elias:1.5 };
+  if(S.param.rendimiento===undefined) S.param.rendimiento = 8;   // km por litro de gasoil
+  if(S.param.precioGasoil===undefined) S.param.precioGasoil = 1.3; // USD por litro
   return S.param;
+}
+// costo de gasoil de ir y volver a un trabajo, dado los km de ida
+function costoTraslado(km){
+  const p=params();
+  if(!km || !p.rendimiento || !p.precioGasoil) return 0;
+  return (km*2 / p.rendimiento) * p.precioGasoil;
 }
 function toggleParam(){
   const b=$('paramBox');
@@ -1449,6 +1509,8 @@ function cargarParamInputs(){
   const p=params();
   $('pAlquiler').value=dec(p.alquilerHa);
   $('pMargen').value=dec(p.margen);
+  $('pRendimiento').value=dec(p.rendimiento);
+  $('pPrecioGasoil').value=dec(p.precioGasoil);
   // una fila de tarifa por cada persona conocida
   $('pTarifas').innerHTML = S.personas.map(n=>
     `<div class="kv"><span class="k">${esc(n)}</span>
@@ -1466,7 +1528,35 @@ function guardarParam(){
   const p=params();
   p.alquilerHa=num($('pAlquiler').value)||0;
   p.margen=num($('pMargen').value)||0;
+  p.rendimiento=num($('pRendimiento').value)||0;
+  p.precioGasoil=num($('pPrecioGasoil').value)||0;
   save(); renderCostos();
+}
+// tabla de traslado por establecimiento: distancia, costo de gasoil y piso de hectáreas
+function renderTraslado(){
+  const cont=$('trasladoLista'); if(!cont) return;
+  const p=params();
+  // costo operativo por hectárea, de los meses medidos (para el piso de ha)
+  const m=modeloCostos();
+  const filas=Object.keys(S.distancias).map(k=>{
+    const [cli,est]=k.split('|');
+    const km=S.distancias[k];
+    const costo=costoTraslado(km);
+    // último precio cobrado a ese cliente (fumigar como referencia)
+    let precio=0;
+    for(let i=S.trabajos.length-1;i>=0;i--){ const t=S.trabajos[i];
+      if(t.cliente===cli && t.precio){ precio=t.precio; break; } }
+    // margen por hectárea (precio − costo/ha) y hectáreas mínimas para cubrir el viaje
+    const margenHa = precio - (m.costoHa||0);
+    const pisoHa = margenHa>0 ? costo/margenHa : null;
+    return {cli,est,km,costo,precio,pisoHa};
+  }).sort((a,b)=>b.km-a.km);
+  if(!filas.length){ cont.innerHTML='<div class="hint">Todavía no cargaste distancias. Aparecen acá cuando anotes km en un trabajo.</div>'; return; }
+  cont.innerHTML = filas.map(f=>
+    `<div class="kv"><span class="k">${esc(f.cli)} · ${esc(f.est)}
+      <span style="font-size:11.5px;opacity:.7">${dec(f.km)} km · gasoil $${f.costo.toFixed(2)} ida y vuelta</span></span>
+      <span class="v" style="font-size:14px">${f.pisoHa? 'piso '+fmtHa(f.pisoHa)+' ha':'—'}</span></div>`).join('')
+    + '<div class="hint" style="margin-top:8px">"Piso" = hectáreas <b>del viaje entero</b> para cubrir el gasoil de ir y volver, al precio que le cobrás a ese cliente. Si hacés varios trabajos en el mismo viaje, sumás sus hectáreas y las comparás con el piso. El gasoil real ya lo contás en Gastos: esto es solo para decidir si conviene viajar.</div>';
 }
 function modeloCostos(){
   const p = params();
@@ -1682,7 +1772,7 @@ function exportCSV(){
   const H=['Fecha','Trabajo','Cliente','Establecimiento','Lote','Hectáreas','Precio','Total','Viento','Caldo/ha',
     'Producto 1','Dosis P1','Producto 2','Dosis P2','Producto 3','Dosis P3','Producto 4','Dosis P4',
     'Adyuvante 1','Dosis A1','Adyuvante 2','Dosis A2','Horas','Facturado','Cobrado','Key','Mes','Año','Operador','Ayudante',
-    'Agua/ha','Agua total','Tancadas','Tanque L','Cant. total'];
+    'Agua/ha','Agua total','Tancadas','Tanque L','Cant. total','Km','Gasoil'];
   const nuevos = S.trabajos.filter(t=>t.nuevo);
   const ts = nuevos.length?nuevos:S.trabajos;
   const rows = ts.map(t=>{
@@ -1692,7 +1782,8 @@ function exportCSV(){
       p[0]?.n,p[0]?.d,p[1]?.n,p[1]?.d,p[2]?.n,p[2]?.d,p[3]?.n,p[3]?.d,
       a[0]?.n,a[0]?.d,a[1]?.n,a[1]?.d, t.horas, t.fact?'TRUE':'FALSE', t.cobr?'TRUE':'FALSE',
       t.id, mesDe(t.fecha), t.fecha.slice(0,4), t.op, t.ay,
-      t.agua, (t.agua&&t.ha)?+(t.agua*t.ha).toFixed(1):'', t.tancadas, t.maxTanque, t.cantTotal].map(csvCell).join(';');
+      t.agua, (t.agua&&t.ha)?+(t.agua*t.ha).toFixed(1):'', t.tancadas, t.maxTanque, t.cantTotal,
+      t.km, t.km?+costoTraslado(t.km).toFixed(2):''].map(csvCell).join(';');
   });
   dl(`trabajos_${hoyISO()}.csv`, [H.join(';'),...rows].join('\n'));
   if(nuevos.length){ nuevos.forEach(t=>t.nuevo=false); save(); updatePend(); }
@@ -1731,6 +1822,7 @@ function borrarTodo(){
 function renderAll(){
   $('fFecha').value = F.fecha;
   renderFechaChips(); renderTipos(); renderClientes(); renderEst(); renderLote();
+  renderKm();
   renderRecetas(); renderRecetasSimple(); renderSimpleDatalist(); renderDatalists();
   renderProds(); renderPersonas(); renderModoTipo(); calcAll(); renderModoEdicion();
 }
