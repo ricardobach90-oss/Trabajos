@@ -87,6 +87,26 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 .tankrow .qt small.uni{border-bottom:1px dotted #4d90ad;padding:2px 1px 1px;cursor:pointer}
 .tankrow .qt small.uni:active{color:#fff}
 
+/* ---------- grilla de resultados de la tancada (look calculador standalone) ---------- */
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--card2);border:1px solid var(--line);border-radius:15px;padding:14px 12px;text-align:center}
+.stat.hero{background:#14351f;border-color:#2f6b45}
+.stat .k{font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;
+  display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:6px}
+.stat.hero .k{color:#7bd6a0}
+.stat .v{font-size:27px;font-weight:800;letter-spacing:-.6px;line-height:1.05}
+.stat .v.sm{font-size:20px}
+.stat.hero .v{color:var(--accent)}
+.stat .v small{font-size:14px;font-weight:700;color:var(--dim)}
+.stat.hero .v small{color:#7bd6a0}
+.statsub{font-size:11px;color:var(--dim);margin-top:5px;line-height:1.3}
+/* ---------- totales de la mezcla ---------- */
+.meztot{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+.meztot .tot{display:flex;justify-content:space-between;font-size:14px;padding:3px 2px;color:var(--dim)}
+.meztot .tot b{color:var(--txt);font-variant-numeric:tabular-nums;font-weight:800}
+.meztot .tot.agua{color:var(--blue)}
+.meztot .tot.agua b{color:var(--blue)}
+
 /* ---------- buttons ---------- */
 .btn{background:var(--accent2);color:#06120b;font-weight:800;font-size:18px;
   border-radius:15px;padding:17px;width:100%;display:flex;align-items:center;
@@ -320,17 +340,24 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       </div>
     </div>
     <button class="btn ghost sm" onclick="usarMaximo()">Llenar el tanque al máximo</button>
-    <div class="tank" id="tancRes" style="display:none;margin-top:12px">
-      <div class="tot" id="tLitros">—</div>
-      <div class="sub" id="tLitrosSub"></div>
-      <div class="tankrow"><span class="nm">Tancadas para el lote</span>
-        <span class="qt" id="tNum">—</span></div>
-      <div class="tankrow"><span class="nm">Última tancada</span>
-        <span class="qt" id="tUltima" style="font-size:15px">—</span></div>
-      <div class="tankrow"><span class="nm">💧 Agua por tancada</span>
-        <span class="qt" id="tAguaT" style="font-size:16px">—</span></div>
-      <div class="tankrow"><span class="nm">💧 Agua total del lote</span>
-        <span class="qt" id="tAguaL" style="font-size:16px">—</span></div>
+    <div class="statgrid" id="tancRes" style="display:none;margin-top:12px">
+      <div class="stat hero">
+        <div class="k">Litros / tancada</div>
+        <div class="v" id="tLitros">—</div>
+        <div class="statsub" id="tLitrosSub"></div>
+      </div>
+      <div class="stat">
+        <div class="k">💧 Agua (lote)</div>
+        <div class="v sm" id="tAguaL">—</div>
+      </div>
+      <div class="stat">
+        <div class="k">N° de tancadas</div>
+        <div class="v" id="tNum">—</div>
+      </div>
+      <div class="stat">
+        <div class="k">Última tancada</div>
+        <div class="v sm" id="tUltima">—</div>
+      </div>
     </div>
   </div>
 
@@ -345,6 +372,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       <button class="chip add sm" onclick="addAdy()">+ Adyuvante</button>
     </div>
     <div class="hint" id="aguaHint" style="margin-top:8px"></div>
+    <div class="meztot" id="mezTot"></div>
   </div>
 
   <div class="card">
@@ -561,6 +589,39 @@ function load(){
 }
 function save(){ try{ localStorage.setItem(K, JSON.stringify(S)); }catch(e){ toast('Sin espacio para guardar','err'); } }
 function uid(){ return Math.random().toString(36).slice(2,10); }
+
+/* ====== BORRADOR: lo que estás cargando sobrevive a que el celular cierre la app ======
+   El trabajo en curso (lote, productos, dosis, caldo, precio…) vive en memoria. Si iOS
+   cierra la app en segundo plano, al reabrir se perdía todo. Acá lo guardamos aparte y lo
+   restauramos, sin necesidad de apretar "Guardar trabajo" (así el cronómetro sigue corriendo). */
+var KD = 'droneApp_draft_v1';
+var DRAFT_INPUTS = ['fHa','fPrecio','fCaldo','fMaxTanque','fHasTancada','fViento','fHoras','fKm',
+                    'sProdNombre','sProdDosis','sCantTotal'];
+var _draftListo = false;   // se arma recién después de restaurar, para no pisar un borrador bueno
+function draftVacio(){
+  if(F.tipo||F.cliente||F.est||F.lote||F.persona) return false;
+  if((F.prods||[]).some(p=>p&&p.n) || (F.adys||[]).some(p=>p&&p.n)) return false;
+  return !DRAFT_INPUTS.some(id=>{ const el=$(id); return el && String(el.value).trim(); });
+}
+function saveDraft(){
+  if(!_draftListo || F.editId) return;              // no guardamos borradores de una edición
+  if(draftVacio()){ clearDraft(); return; }
+  const inp={}; DRAFT_INPUTS.forEach(id=>{ const el=$(id); if(el) inp[id]=el.value; });
+  try{ localStorage.setItem(KD, JSON.stringify({F:F, inp:inp, ts:Date.now()})); }catch(e){}
+}
+function clearDraft(){ try{ localStorage.removeItem(KD); }catch(e){} }
+function restoreDraft(){
+  let d=null; try{ d=JSON.parse(localStorage.getItem(KD)||'null'); }catch(e){}
+  if(!d || !d.F || d.F.editId) return false;
+  if(d.ts && (Date.now()-d.ts) > 48*3600*1000){ clearDraft(); return false; }  // borrador viejo: se descarta
+  F = d.F;
+  if(!F.prods) F.prods=[];
+  if(!F.adys)  F.adys=[];
+  renderAll();
+  DRAFT_INPUTS.forEach(id=>{ const el=$(id); if(el && d.inp && d.inp[id]!=null) el.value=d.inp[id]; });
+  calcAll();
+  return true;
+}
 
 /* ====== CAPA 1: pedir que el navegador NO borre los datos ====== */
 async function pedirPersistencia(){
@@ -929,6 +990,7 @@ function calcAll(){
   if(F.tipo && TIPOS_SIMPLES.includes(F.tipo)) calcSimple(ha);
   else calcFumigacion(ha);
   renderKm();
+  saveDraft();
 }
 
 // sembrar / cebo / fertilizar: un producto, su dosis, y la cantidad total
@@ -973,25 +1035,39 @@ function calcFumigacion(ha){
       : `<span style="color:var(--bad)">Los productos suman más que el caldo/ha</span>`;
   } else { $('aguaHint').textContent=''; F.agua=null; }
 
-  // panel de la tancada
+  // panel de la tancada (grilla de resultados)
   const res = $('tancRes');
   if(litrosTancada>0){
     const excede = maxTanque>0 && litrosTancada>maxTanque;
-    res.style.display='block';
-    $('tLitros').textContent = fmt(litrosTancada,0)+' L por tancada';
+    res.style.display='grid';
+    $('tLitros').innerHTML = fmt(litrosTancada,0)+' <small>L</small>';
     $('tLitros').style.color = excede ? '#fca5a5' : '';
     $('tLitrosSub').textContent = `${dec(hasTancada)} ha × ${dec(caldo)} L/ha`
-      + (excede ? ` — ¡pasa del tanque de ${dec(maxTanque)} L!` : '');
+      + (excede ? ` · ¡pasa del tanque de ${dec(maxTanque)} L!` : '');
+    $('tLitrosSub').style.color = excede ? '#fca5a5' : '';
     if(ha>0){
       const n = Math.ceil(ha/hasTancada);
       F.tancadas = n;
       $('tNum').textContent = n;
       const ultHa = ha-(n-1)*hasTancada;
-      $('tUltima').textContent = `${fmt(ultHa,1)} ha · ${fmt(ultHa*caldo,0)} L`;
+      $('tUltima').innerHTML = `${fmt(ultHa,1)} ha <small>(${fmt(ultHa*caldo,0)} L)</small>`;
     } else { F.tancadas=null; $('tNum').textContent='—'; $('tUltima').textContent='—'; }
-    $('tAguaT').textContent = (aguaHa!=null&&aguaHa>=0) ? fmt(aguaHa*hasTancada,0)+' L' : '—';
-    $('tAguaL').textContent = (aguaHa!=null&&aguaHa>=0&&ha) ? fmt(aguaHa*ha,0)+' L' : '—';
+    $('tAguaL').innerHTML = (aguaHa!=null&&aguaHa>=0&&ha) ? fmt(aguaHa*ha,0)+' <small>L</small>' : '—';
   } else { res.style.display='none'; F.tancadas=null; }
+
+  // totales de la mezcla: producto por tancada y por lote, + agua por tancada
+  const mt = $('mezTot');
+  if(mt){
+    const totHa = F.prods.filter(p=>p.n && p.d!=null)
+      .reduce((a,p)=>a + dosisHaDe(p,false,caldo), 0);
+    if(totHa>0 && (hasTancada>0 || ha>0)){
+      const filas = [];
+      if(hasTancada>0) filas.push(`<div class="tot"><span>Total productos / tancada</span><b>${fmt(totHa*hasTancada,1)} L</b></div>`);
+      if(ha>0)         filas.push(`<div class="tot"><span>Total productos / lote</span><b>${fmt(totHa*ha,1)} L</b></div>`);
+      if(aguaHa!=null&&aguaHa>=0&&hasTancada>0) filas.push(`<div class="tot agua"><span>💧 Agua / tancada</span><b>${fmt(aguaHa*hasTancada,0)} L</b></div>`);
+      mt.innerHTML = filas.join('');
+    } else mt.innerHTML='';
+  }
 
   // cantidad de cada producto/adyuvante POR TANCADA y POR LOTE
   const pinta = (elId, item, esAdy)=>{
@@ -1118,6 +1194,7 @@ function guardarTrabajo(){
   if(eraEdicion){ renderHist(); }
 }
 function limpiarForm(manual){
+  clearDraft();
   const cli=F.cliente, est=F.est, tipo=F.tipo;
   resetF();
   if(!manual){ F.cliente=cli; F.est=est; F.tipo=tipo; }  // mismo campo, otro lote
@@ -1804,12 +1881,20 @@ function renderAll(){
   renderRecetas(); renderRecetasSimple(); renderSimpleDatalist(); renderDatalists();
   renderProds(); renderPersonas(); renderModoTipo(); calcAll(); renderModoEdicion();
 }
-load(); resetF(); renderAll(); updatePend();
+load(); resetF();
+var _recuperado = restoreDraft();     // si dejaste algo a medio cargar, vuelve
+if(!_recuperado) renderAll();
+_draftListo = true;
+updatePend();
 renderCrono();
+if(_recuperado) toast('Recuperé lo que estabas cargando');
 pedirPersistencia();
 updateSyncPill(); renderSync(); chequearBackup();
 if(S.syncUrl) sincronizar();
-window.addEventListener('beforeunload', save);
+window.addEventListener('beforeunload', ()=>{ save(); saveDraft(); });
+// iOS puede cerrar la app en segundo plano: guardamos el borrador al ocultarla
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden'){ save(); saveDraft(); } });
+window.addEventListener('pagehide', ()=>{ save(); saveDraft(); });
 </script>
 </body>
 </html>
