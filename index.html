@@ -106,6 +106,14 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 .meztot .tot b{color:var(--txt);font-variant-numeric:tabular-nums;font-weight:800}
 .meztot .tot.agua{color:var(--blue)}
 .meztot .tot.agua b{color:var(--blue)}
+/* ---------- sugerencias de productos más usados ---------- */
+.sugrow:empty{display:none}
+.sugrow{margin:0 0 10px}
+.sugrow .sugttl{font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.chip.sug{background:var(--card2)}
+.chip.sug .n{font-size:11px;color:var(--dim);font-weight:700;margin-left:3px}
+.chip.sug.on{background:#14351f;border-color:var(--accent);color:var(--accent)}
+.chip.sug.on .n{color:#7bd6a0}
 
 /* ---------- buttons ---------- */
 .btn{background:var(--accent2);color:#06120b;font-weight:800;font-size:18px;
@@ -308,9 +316,10 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   <!-- ===== BLOQUE SIMPLE: sembrar / cebo / fertilizar ===== -->
   <div class="card soloSimple" id="cardSimple">
     <div class="lbl" id="simpleLbl">Producto</div>
+    <div class="sugrow" id="sugSimple"></div>
     <div class="prodline">
       <input class="pn" list="dl-simple" id="sProdNombre" placeholder="Producto"
-             oninput="simpleProd()">
+             oninput="simpleProdNombre()">
       <input class="pd" type="text" inputmode="decimal" id="sProdDosis"
              placeholder="dosis/ha" oninput="simpleProd()">
     </div>
@@ -366,6 +375,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 
   <div class="card soloFum" id="cardMezcla">
     <div class="lbl">Mezcla</div>
+    <div class="sugrow" id="sugProds"></div>
     <div id="fProds"></div>
     <div class="row" style="margin-top:4px">
       <button class="chip add sm" onclick="addProd()">+ Producto</button>
@@ -564,6 +574,7 @@ function load(){
       if(!S.param.tarifas) S.param.tarifas = { Elias:1.5 };
       if(!S.crono) S.crono = {};
       if(!S.distancias) S.distancias = {};
+      if(!S.dosisMem){ S.dosisMem = reconstruirDosisMem(); save(); }
       if(migrarCategorias()) save();
       return;
     }
@@ -585,6 +596,7 @@ function load(){
     syncUrl: '', ultBackup: null,
     creado: new Date().toISOString()
   };
+  S.dosisMem = reconstruirDosisMem();
   save();
 }
 function save(){ try{ localStorage.setItem(K, JSON.stringify(S)); }catch(e){ toast('Sin espacio para guardar','err'); } }
@@ -735,6 +747,7 @@ function renderModoTipo(){
     $('simpleLbl').textContent = F.tipo==='Sembrar' ? 'Semilla'
       : (F.tipo==='Cebo' ? 'Cebo' : 'Fertilizante');
   }
+  renderSugerencias();
 }
 
 /* ================= EDITAR UN TRABAJO YA CARGADO ================= */
@@ -826,12 +839,22 @@ function pickTipo(t){
 function renderSimpleDatalist(){
   $('dl-simple').innerHTML = S.productos.map(p=>`<option value="${esc(p)}">`).join('');
 }
+// al escribir/elegir el nombre en el flujo simple, si no hay dosis cargada, pongo la usual
+function simpleProdNombre(){
+  const n = $('sProdNombre').value.trim();
+  if(n && num($('sProdDosis').value)==null){
+    const du = dosisUsual(F.tipo, n);
+    if(du){ $('sProdDosis').value = dec(du.d); F.cantManual=false; }
+  }
+  simpleProd();
+}
 function simpleProd(){
   const n = $('sProdNombre').value.trim();
   const dd = num($('sProdDosis').value);
   F.prods = n ? [{n, d:dd}] : [];
   F.adys = [];
   calcAll();
+  renderSugerencias();
 }
 function renderRecetasSimple(){ /* mezclas precargadas quitadas a pedido de Ricardo */ }
 function aplicarSimple(nombre, dosis){
@@ -937,14 +960,95 @@ function dosisHaDe(item, esAdy, caldo){
   if(esAdy && item.u==='100L') return item.d * (caldo||0) / 100;
   return item.d;
 }
+/* ====== memoria de dosis y productos más usados ====== */
+// dosis que solés usar de un producto en cierto tipo de trabajo (ej: Fertilizar+Urea → 100 kg/ha)
+function dosisUsual(tipo, nombre){
+  if(!tipo || !nombre) return null;
+  const m = S.dosisMem && S.dosisMem[tipo+'|'+nombre];
+  if(m && m.d!=null) return {d:m.d, u:m.u||unidadDe(nombre,tipo)};
+  return null;
+}
+// productos más usados para un tipo de trabajo, ordenados por cantidad de usos
+function topProductos(tipo, n){
+  const mem = S.dosisMem||{}, arr=[];
+  Object.keys(mem).forEach(k=>{
+    const i=k.indexOf('|'); if(i<0) return;
+    const tp=k.slice(0,i), nombre=k.slice(i+1);
+    if(tp!==tipo || !nombre) return;
+    const m=mem[k];
+    arr.push({n:nombre, d:m.d, u:m.u||unidadDe(nombre,tipo), usos:m.usos||0, ult:m.ult||''});
+  });
+  arr.sort((a,b)=> (b.usos-a.usos) || (a.ult<b.ult?1:-1));
+  return arr.slice(0, n||6);
+}
+// dibuja los chips de "más usados" en el bloque que corresponda al tipo actual
+function renderSugerencias(){
+  const tipo=F.tipo, fum=esFumigacion(), simple = tipo && TIPOS_SIMPLES.includes(tipo);
+  const cs=$('sugSimple'), cf=$('sugProds');
+  if(cs && !simple) cs.innerHTML='';
+  if(cf && !(fum && tipo)) cf.innerHTML='';
+  const cont = simple ? cs : (fum && tipo ? cf : null);
+  if(!cont || !tipo){ return; }
+  const top = topProductos(tipo, 6);
+  if(!top.length){ cont.innerHTML=''; return; }
+  const puestos = new Set((F.prods||[]).map(p=>(p.n||'').trim().toLowerCase()));
+  const chips = top.map(o=>{
+    const on = puestos.has(o.n.toLowerCase());
+    const dl = o.d!=null ? `<span class="n">${dec(o.d)} ${o.u}</span>` : '';
+    return `<button class="chip sm sug${on?' on':''}" onclick="pickSugProd(${esc(JSON.stringify(o.n))})">${esc(o.n)}${dl}</button>`;
+  }).join('');
+  cont.innerHTML = `<div class="sugttl">Más usados</div><div class="chips">${chips}</div>`;
+}
+// tocar un chip: carga el producto con su dosis usual (editable)
+function pickSugProd(nombre){
+  const du = dosisUsual(F.tipo, nombre);
+  const d = du ? du.d : null;
+  if(F.tipo && TIPOS_SIMPLES.includes(F.tipo)){
+    $('sProdNombre').value = nombre;
+    $('sProdDosis').value = dec(d);
+    F.cantManual=false; simpleProd();
+  } else {
+    let i = F.prods.findIndex(p=>!p.n);
+    if(i<0){ F.prods.push({n:nombre, d:d}); }
+    else { F.prods[i].n=nombre; F.prods[i].d=d; }
+    renderProds(); calcAll();
+  }
+}
+// al escribir/elegir el nombre en la mezcla, prellenar la dosis usual si está vacía
+function setProdNombre(i, val){
+  if(!F.prods[i]) return;
+  F.prods[i].n = val;
+  if(F.prods[i].d==null){
+    const du = dosisUsual(F.tipo, val.trim());
+    if(du){ F.prods[i].d = du.d; const el=$('pd-p-'+i); if(el) el.value=dec(du.d); }
+  }
+  calcAll();
+}
+// reconstruye la memoria de dosis a partir de los trabajos ya cargados
+function reconstruirDosisMem(){
+  const mem={};
+  (S.trabajos||[]).forEach(t=>{
+    if(!t.tipo || !t.prods) return;
+    t.prods.forEach(p=>{
+      if(!p.n || p.d==null) return;
+      const k=t.tipo+'|'+p.n, f=t.fecha||'';
+      const cur=mem[k]||{d:p.d, usos:0, ult:''};
+      cur.usos++;
+      if(!cur.ult || f>=cur.ult){ cur.d=p.d; cur.ult=f; }
+      mem[k]=cur;
+    });
+  });
+  Object.keys(mem).forEach(k=>{ const i=k.indexOf('|'); mem[k].u=unidadDe(k.slice(i+1), k.slice(0,i)); });
+  return mem;
+}
 function renderProds(){
   const prod = (i)=>{
     const p=F.prods[i];
     return `<div class="mezfila">
       <div class="mrow">
         <input class="pn" list="dl-p" placeholder="Producto" value="${esc(p.n)}"
-               oninput="F.prods[${i}].n=this.value;calcAll()">
-        <input class="pd" type="text" inputmode="decimal" placeholder="dosis/ha" value="${dec(p.d)}"
+               oninput="setProdNombre(${i}, this.value)">
+        <input class="pd" id="pd-p-${i}" type="text" inputmode="decimal" placeholder="dosis/ha" value="${dec(p.d)}"
                oninput="F.prods[${i}].d=num(this.value);calcAll()">
         <button class="x" onclick="F.prods.splice(${i},1);renderProds();calcAll()">×</button>
       </div>
@@ -971,6 +1075,7 @@ function renderProds(){
   $('fProds').innerHTML =
     F.prods.map((_,i)=>prod(i)).join('') +
     F.adys.map((_,i)=>ady(i)).join('');
+  renderSugerencias();
 }
 // los datalists se pueblan una sola vez, fuera de las filas (no se regeneran al tipear)
 function renderDatalists(){
@@ -1168,6 +1273,13 @@ function guardarTrabajo(){
   S.jer[t.cliente][est][t.lote||'—'] = ha;
   t.prods.forEach(p=>{ if(!S.productos.includes(p.n)) S.productos.push(p.n); });
   t.adys.forEach(p=>{ if(!S.adyuvantes.includes(p.n)) S.adyuvantes.push(p.n); });
+  // recordar la dosis usual de cada producto para este tipo de trabajo
+  S.dosisMem = S.dosisMem || {};
+  t.prods.forEach(p=>{
+    if(!p.n || p.d==null) return;
+    const k = t.tipo+'|'+p.n, prev = S.dosisMem[k] || {usos:0};
+    S.dosisMem[k] = {d:p.d, u:unidadDe(p.n,t.tipo), usos:(prev.usos||0)+1, ult:t.fecha||hoyISO()};
+  });
   if(t.ay && !S.personas.includes(t.ay)) S.personas.push(t.ay);
   // guardar la distancia del establecimiento para autocompletar la próxima
   if(t.km!=null && t.est) S.distancias[t.cliente+'|'+t.est] = t.km;
