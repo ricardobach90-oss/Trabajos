@@ -563,6 +563,29 @@ var SEED = {"unidades":{"Abamet":"L","Paraquat":"L","Speed weed maxion rojo":"L"
 var K = 'droneApp_v1';
 var S = null;
 
+// distancias por establecimiento (km de ida), cargadas una vez desde el Sheet.
+// De acá en más, la app es la fuente: lo que edites acá se manda solo a la planilla.
+var DIST_SEED = {
+  'Alfredo Holstein|Casa':15, 'Alvaro|Bellaco':15, 'Alvaro|Bertinat':9, 'Alvaro|Bosinski':15,
+  'Alvaro|Capincho':5, 'Alvaro|Carrique':3, 'Alvaro|Chito':9, 'Alvaro|Erwin':7, 'Alvaro|Fondo':8,
+  'Alvaro|Rostan':8, 'Alvaro|San Ramon':6, 'Alvaro|Sviridenko':7, 'Burkhard|Tambo':8,
+  'Cina Cina|Abrojal':45, 'Cina Cina|El Talisman':130, 'Cina Cina|Villa asuncion':45,
+  'Davila|San Rafael':6, 'Dubach|Casa':0, 'Dubach|Grishka':15, 'Dubach|Negro':5,
+  'Erwin Regehr|Colonia':5, 'Frank Klaassen|Tambo':7, 'Garcia|Puerto viejo':20, 'Henry|Casa':2,
+  'Jimmy Holstein|San Javier':14, 'Manuel Pereira|El Porvenir':15, 'Manuel Pereira|Merinos':100,
+  'Martin Stirling|La Porfia':80, 'Marvin|Espinillo':40, 'Marvin|La Cantera':40, 'Marvin|Los Ceibos':5,
+  'Miguel Viera|Las Mulas':13, 'Nalmer|Aguila':100, 'Nalmer|Cabure':50, 'Nalmer|Campanilla':120,
+  'Nalmer|Dolores':110, 'Nalmer|Doña Juana':120, 'Nalmer|El Aguila':100, 'Nalmer|El Araza':50,
+  'Nalmer|La Esmeralda':40, 'Nalmer|La Martita':55, 'Nalmer|Las maulas':90, 'Nalmer|Los tientos':90,
+  'Nalmer|Rolon':120, 'Nalmer|Ruta 96':110, 'Nalmer|Santa Teresa':140, 'Nalmer|Valle de Soba':60,
+  'Ralph Wiens|Cooperativa':5, 'Rodrigo Laluz|Don Jacinto':80, 'Tija|Galpon':20, 'Tija|Molina':20,
+  'Tija|Novak':20, 'Tija|San Manuel':15
+};
+function aplicarSeedDistancias(){
+  if(!S.distancias) S.distancias = {};
+  Object.keys(DIST_SEED).forEach(function(k){ S.distancias[k] = DIST_SEED[k]; });
+}
+
 function load(){
   try{ const raw = localStorage.getItem(K);
     if(raw){ S = JSON.parse(raw);
@@ -574,7 +597,10 @@ function load(){
       if(!S.param.tarifas) S.param.tarifas = { Elias:1.5 };
       if(!S.crono) S.crono = {};
       if(!S.distancias) S.distancias = {};
+      if(S.distDirty===undefined) S.distDirty = false;
       if(!S.dosisMem){ S.dosisMem = reconstruirDosisMem(); save(); }
+      // carga única de las distancias del Sheet; después la app es la fuente
+      if(!S.distSeedV1){ aplicarSeedDistancias(); S.distSeedV1 = true; S.distDirty = true; save(); }
       if(migrarCategorias()) save();
       return;
     }
@@ -593,10 +619,11 @@ function load(){
     personas: [...SEED.personas],
     unidades: {...SEED.unidades},
     param: paramDef(), crono: {}, tipoCambio: 42, distancias: {},
-    syncUrl: '', ultBackup: null,
+    syncUrl: '', ultBackup: null, distSeedV1: true, distDirty: true,
     creado: new Date().toISOString()
   };
   S.dosisMem = reconstruirDosisMem();
+  aplicarSeedDistancias();
   save();
 }
 function save(){ try{ localStorage.setItem(K, JSON.stringify(S)); }catch(e){ toast('Sin espacio para guardar','err'); } }
@@ -1282,7 +1309,7 @@ function guardarTrabajo(){
   });
   if(t.ay && !S.personas.includes(t.ay)) S.personas.push(t.ay);
   // guardar la distancia del establecimiento para autocompletar la próxima
-  if(t.km!=null && t.est) S.distancias[t.cliente+'|'+t.est] = t.km;
+  if(t.km!=null && t.est){ S.distancias[t.cliente+'|'+t.est] = t.km; S.distDirty = true; }
 
   // receta: si la mezcla ya existe suma uso, si no la crea
   const firma = j=>[...j.prods,...j.adys].map(p=>p.n+':'+p.d).sort().join('|');
@@ -1699,31 +1726,44 @@ function guardarParam(){
   p.costoKm=num($('pCostoKm').value)||0;
   save(); renderCostos();
 }
-// tabla de traslado por establecimiento: distancia, costo del viaje y piso de hectáreas
+// tabla de traslado por establecimiento: distancia editable, costo del viaje y piso de hectáreas
+var _distKeys = [];
+// subtítulo de una fila: costo del viaje y piso de hectáreas
+function distSub(cli, km, m){
+  const costo = costoTraslado(km);
+  let precio = 0;
+  for(let i=S.trabajos.length-1;i>=0;i--){ const t=S.trabajos[i];
+    if(t.cliente===cli && t.precio){ precio=t.precio; break; } }
+  const margenHa = precio - (m.costoHa||0);
+  const pisoHa = (km>0 && margenHa>0) ? costo/margenHa : null;
+  return `viaje $${costo.toFixed(2)}` + (pisoHa ? ` · piso ${fmtHa(pisoHa)} ha` : (km>0 ? ' · sin precio' : ''));
+}
 function renderTraslado(){
   const cont=$('trasladoLista'); if(!cont) return;
-  const p=params();
-  // costo operativo por hectárea, de los meses medidos (para el piso de ha)
   const m=modeloCostos();
-  const filas=Object.keys(S.distancias).map(k=>{
+  const keys=Object.keys(S.distancias).sort((a,b)=>(S.distancias[b]||0)-(S.distancias[a]||0));
+  _distKeys = keys;
+  if(!keys.length){ cont.innerHTML='<div class="hint">Todavía no cargaste distancias. Aparecen acá cuando anotes km en un trabajo.</div>'; return; }
+  cont.innerHTML = keys.map((k,i)=>{
     const [cli,est]=k.split('|');
     const km=S.distancias[k];
-    const costo=costoTraslado(km);
-    // último precio cobrado a ese cliente (fumigar como referencia)
-    let precio=0;
-    for(let i=S.trabajos.length-1;i>=0;i--){ const t=S.trabajos[i];
-      if(t.cliente===cli && t.precio){ precio=t.precio; break; } }
-    // margen por hectárea (precio − costo/ha) y hectáreas mínimas para cubrir el viaje
-    const margenHa = precio - (m.costoHa||0);
-    const pisoHa = margenHa>0 ? costo/margenHa : null;
-    return {cli,est,km,costo,precio,pisoHa};
-  }).sort((a,b)=>b.km-a.km);
-  if(!filas.length){ cont.innerHTML='<div class="hint">Todavía no cargaste distancias. Aparecen acá cuando anotes km en un trabajo.</div>'; return; }
-  cont.innerHTML = filas.map(f=>
-    `<div class="kv"><span class="k">${esc(f.cli)} · ${esc(f.est)}
-      <span style="font-size:11.5px;opacity:.7">${dec(f.km)} km · costo del viaje $${f.costo.toFixed(2)}</span></span>
-      <span class="v" style="font-size:14px">${f.pisoHa? 'piso '+fmtHa(f.pisoHa)+' ha':'—'}</span></div>`).join('')
-    + '<div class="hint" style="margin-top:8px">"Piso" = hectáreas <b>del viaje entero</b> para que el <b>margen</b> (precio menos el costo del dron por hectárea) cubra el costo de ir y volver. Si hacés varios trabajos en el mismo viaje, sumás sus hectáreas y las comparás con el piso. Es una estimación para decidir si conviene viajar; el combustible real ya lo contás en Gastos.</div>';
+    return `<div class="kv"><span class="k">${esc(cli)} · ${esc(est)}
+      <span id="distSub-${i}" style="font-size:11.5px;opacity:.7">${distSub(cli,km,m)}</span></span>
+      <span style="display:flex;align-items:center;gap:6px;flex:none">
+        <input type="text" inputmode="decimal" style="width:62px;text-align:right;padding:8px 10px"
+               value="${dec(km)}" oninput="setDistanciaIdx(${i}, this.value)" onchange="sincronizar()">
+        <span style="font-size:12px;color:var(--dim)">km</span></span></div>`;
+  }).join('')
+    + '<div class="hint" style="margin-top:8px">Editá el km de cada establecimiento acá: se guarda y se manda solo a la planilla. "Piso" = hectáreas <b>del viaje entero</b> para que el <b>margen</b> (precio menos el costo del dron por hectárea) cubra el costo de ir y volver. Es una estimación; el combustible real ya lo contás en Gastos.</div>';
+}
+// editar el km de un establecimiento desde la lista
+function setDistanciaIdx(i, val){
+  const k=_distKeys[i]; if(!k) return;
+  const n=num(val);
+  if(n==null) delete S.distancias[k]; else S.distancias[k]=n;
+  S.distDirty=true; save(); updateSyncPill();
+  const span=$('distSub-'+i);
+  if(span) span.textContent = distSub(k.split('|')[0], S.distancias[k], modeloCostos());
 }
 function modeloCostos(){
   const p = params();
@@ -1846,7 +1886,7 @@ function pendientesSync(){
 }
 function updateSyncPill(){
   const p=$('syncPill'); if(!p) return;
-  const n=pendientesSync().length;
+  const n=pendientesSync().length + (S.distDirty?1:0);
   if(!S.syncUrl){ p.style.display='none'; return; }
   p.style.display = n?'inline-block':'none';
   p.className='pill'; p.textContent = n+' por enviar';
@@ -1855,14 +1895,17 @@ async function sincronizar(manual){
   if(sincronizando) return;
   if(!S.syncUrl){ if(manual) toast('Falta configurar la dirección','err'); return; }
   const pend = pendientesSync();
-  if(!pend.length){ if(manual) toast('Ya está todo enviado'); return; }
+  if(!pend.length && !S.distDirty){ if(manual) toast('Ya está todo enviado'); return; }
   if(!navigator.onLine){ if(manual) toast('Sin conexión — se envía solo después','err'); return; }
   sincronizando=true; renderSync();
+  const enviarDist = !!S.distDirty;
   try{
     const paquete = {
       trabajos: S.trabajos.filter(t=>!t.sync),
       gastos: S.gastos.filter(g=>!g.sync)
     };
+    // las distancias van como { 'Cliente|Establecimiento': km } y el script las actualiza en la hoja Distancias
+    if(enviarDist) paquete.distancias = S.distancias;
     // body como texto plano => pedido simple, sin preflight CORS
     const r = await fetch(S.syncUrl, {method:'POST', body: JSON.stringify(paquete), redirect:'follow'});
     const txt = await r.text();
@@ -1871,8 +1914,11 @@ async function sincronizar(manual){
     const ok = new Set([...(res.trabajos||[]), ...(res.gastos||[])]);
     S.trabajos.forEach(t=>{ if(ok.has(t.id)) t.sync=Date.now(); });
     S.gastos.forEach(g=>{ if(ok.has(g.id)) g.sync=Date.now(); });
+    if(enviarDist) S.distDirty = false;      // ya quedaron en la planilla
     S.ultSync = Date.now(); save();
-    toast(`${ok.size} guardado${ok.size===1?'':'s'} en tu planilla`);
+    var msg = ok.size ? `${ok.size} guardado${ok.size===1?'':'s'} en tu planilla` : 'Planilla actualizada';
+    if(enviarDist && res.distancias) msg += ` · ${res.distancias} distancia${res.distancias===1?'':'s'}`;
+    toast(msg);
   }catch(e){
     if(manual) toast('No se pudo enviar: '+e.message,'err');
   }finally{
