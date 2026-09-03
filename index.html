@@ -1455,9 +1455,6 @@ function reportePDF(t){
     .grid div{min-width:150px;margin-bottom:8px}
     .k{color:#666;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
     .v{font-size:16px;font-weight:700}
-    .estado{display:inline-block;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:700;margin-right:6px}
-    .si{background:#dcf5e3;color:#146c34}
-    .no{background:#fde3e3;color:#9c1c1c}
     footer{margin-top:30px;color:#999;font-size:11px}
     @media print{ body{padding:8px} }
   </style></head><body>
@@ -1474,11 +1471,6 @@ function reportePDF(t){
     ${t.km!=null?`<div><div class="k">Distancia (ida)</div><div class="v">${dec(t.km)} km</div></div>`:''}
   </div>
 
-  <div style="margin:10px 0 20px">
-    <span class="estado ${t.fact?'si':'no'}">${t.fact?'✓ Facturado':'Sin facturar'}</span>
-    <span class="estado ${t.cobr?'si':'no'}">${t.cobr?'✓ Cobrado':'Sin cobrar'}</span>
-  </div>
-
   ${items.length?`<h2>Mezcla</h2>
   <table><thead><tr><th>Producto</th><th style="text-align:right">Dosis</th><th style="text-align:right">Cantidad total</th></tr></thead>
   <tbody>${filasMezcla}</tbody></table>` : ''}
@@ -1490,7 +1482,7 @@ function reportePDF(t){
   ${t.tancadas?`<div class="grid"><div><div class="k">Tancadas</div><div class="v">${t.tancadas}${t.maxTanque?' · tanque '+dec(t.maxTanque)+' L':''}</div></div></div>`:''}
   ${t.cantTotal?`<div class="grid"><div><div class="k">Cantidad total usada</div><div class="v">${fmt(t.cantTotal,1)} ${items[0]?unidadDe(items[0].n,t.tipo):''}</div></div></div>`:''}
 
-  <footer>Generado desde la app Trabajos Drone el ${new Date().toLocaleDateString('es-UY')}</footer>
+  <footer>Reporte generado el ${new Date().toLocaleDateString('es-UY')}</footer>
   </body></html>`;
 }
 function exportarPDF(id){
