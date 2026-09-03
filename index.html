@@ -1516,7 +1516,6 @@ function verDetalle(id){
       .filter(Boolean).map(x=>`<div class="hint">${esc(x)}</div>`).join('')}
     <div class="divide"></div>
     <button class="btn sm mb" onclick="editarTrabajo('${t.id}')">✎ Editar este trabajo</button>
-    <button class="btn ghost sm mb" onclick="exportarPDF('${t.id}')">📄 Exportar PDF</button>
     <button class="btn ghost sm mb" onclick="repetir('${t.id}')">↻ Repetir como uno nuevo</button>
     <button class="btn danger sm" onclick="borrarTrabajo('${t.id}')">Borrar</button>`;
   $('shDetalle').classList.add('on');
@@ -1613,106 +1612,17 @@ function guardarGasto(){
   renderGastos(); updateSyncPill(); sincronizar(); toast('Gasto guardado');
 }
 
-/* ================= EXPORTAR TRABAJO A PDF ================= */
-// arma un reporte imprimible de un trabajo (pensado para mandarle al cliente: sin
-// chips de facturado/cobrado ni referencias a la app) y lo abre en una pestaña
-// nueva en blanco para imprimir; desde ahí "Guardar en PDF" (o compartir) lo
-// convierte en PDF real, sin depender de ninguna librería ni de conexión a internet
-function reportePDF(t){
-  const tot = (t.ha&&t.precio)?t.ha*t.precio:null;
-  const items=[...(t.prods||[]).map(p=>({...p,ady:false})),...(t.adys||[]).map(p=>({...p,ady:true}))];
-  const fechaLarga = t.fecha.split('-').reverse().join('/');
-  const filasMezcla = items.map(p=>{
-    const un = unidadDe(p.n, t.tipo, p.ady);
-    const totQ = (p.d && t.ha) ? cantidadTotal(p.d, t.ha, un) : null;
-    return `<tr>
-      <td>${esc(p.n)}${p.ady?' <span style="color:#888;font-size:11px">(adyuvante)</span>':''}</td>
-      <td style="text-align:right">${p.d!=null?dec(p.d):'—'} ${un}/ha</td>
-      <td style="text-align:right">${totQ?fmt(totQ.v, totQ.v<10?2:(totQ.v<100?1:0))+' '+totQ.u:'—'}</td>
-    </tr>`;
-  }).join('');
-  return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
-  <title>Trabajo ${esc(t.cliente)} ${fechaLarga}</title>
-  <style>
-    *{box-sizing:border-box}
-    body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#111;padding:28px;font-size:14px;line-height:1.5}
-    h1{font-size:20px;margin:0 0 2px}
-    h2{font-size:15px;margin:22px 0 8px;border-bottom:1px solid #ccc;padding-bottom:4px}
-    .sub{color:#555;font-size:13px;margin-bottom:18px}
-    table{width:100%;border-collapse:collapse;margin-bottom:6px}
-    th,td{padding:6px 4px;border-bottom:1px solid #ddd;text-align:left;font-size:13px}
-    .grid{display:flex;flex-wrap:wrap;gap:0 24px;margin-bottom:6px}
-    .grid div{min-width:150px;margin-bottom:8px}
-    .k{color:#666;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
-    .v{font-size:16px;font-weight:700}
-    footer{margin-top:30px;color:#999;font-size:11px}
-    @media print{ body{padding:8px} }
-  </style></head><body>
-  <h1>${esc(t.cliente)} — ${esc(t.tipo)}</h1>
-  <div class="sub">${fechaLarga}${[t.est,t.lote].filter(Boolean).length?' · '+esc([t.est,t.lote].filter(Boolean).join(' / ')):''}</div>
-
-  <div class="grid">
-    <div><div class="k">Hectáreas</div><div class="v">${fmtHa(t.ha)} ha</div></div>
-    <div><div class="k">Precio</div><div class="v">${t.precio?'$'+dec(t.precio)+'/ha':'—'}</div></div>
-    <div><div class="k">Total</div><div class="v">${tot?'$'+fmt(tot):'—'}</div></div>
-    ${t.viento!=null?`<div><div class="k">Viento</div><div class="v">${dec(t.viento)} km/h</div></div>`:''}
-    ${t.horas!=null?`<div><div class="k">Horas</div><div class="v">${dec(t.horas)} h</div></div>`:''}
-    ${t.ay?`<div><div class="k">Ayudante</div><div class="v">${esc(t.ay)}</div></div>`:''}
-    ${t.km!=null?`<div><div class="k">Distancia (ida)</div><div class="v">${dec(t.km)} km</div></div>`:''}
-  </div>
-
-  ${items.length?`<h2>Mezcla</h2>
-  <table><thead><tr><th>Producto</th><th style="text-align:right">Dosis</th><th style="text-align:right">Cantidad total</th></tr></thead>
-  <tbody>${filasMezcla}</tbody></table>` : ''}
-
-  ${t.caldo?`<div class="grid"><div><div class="k">Caldo</div><div class="v">${dec(t.caldo)} L/ha</div></div>
-    <div><div class="k">Caldo total</div><div class="v">${fmt(t.caldo*t.ha)} L</div></div></div>`:''}
-  ${t.agua?`<div class="grid"><div><div class="k">Agua</div><div class="v">${dec(t.agua)} L/ha</div></div>
-    <div><div class="k">Agua total</div><div class="v">${fmt(t.agua*t.ha)} L</div></div></div>`:''}
-  ${t.tancadas?`<div class="grid"><div><div class="k">Tancadas</div><div class="v">${t.tancadas}${t.maxTanque?' · tanque '+dec(t.maxTanque)+' L':''}</div></div></div>`:''}
-  ${t.cantTotal?`<div class="grid"><div><div class="k">Cantidad total usada</div><div class="v">${fmt(t.cantTotal,1)} ${items[0]?unidadDe(items[0].n,t.tipo):''}</div></div></div>`:''}
-
-  <footer>Reporte generado el ${new Date().toLocaleDateString('es-UY')}</footer>
-  </body></html>`;
-}
-function exportarPDF(id){
-  const t = S.trabajos.find(x=>x.id===id); if(!t) return;
-  const html = reportePDF(t);
-  // se abre en una pestaña nueva en blanco (no en un iframe escondido) para que el
-  // pie de impresión del navegador no muestre la dirección de tu app: al imprimir
-  // desde una pestaña "about:blank" no aparece ningún link identificable
-  const win = window.open('', '_blank');
-  if(!win){ toast('Habilitá las ventanas emergentes para exportar el PDF','err'); return; }
-  win.document.open(); win.document.write(html); win.document.close();
-  setTimeout(()=>{
-    try{ win.focus(); win.print(); }
-    catch(e){ toast('No se pudo abrir la impresión','err'); }
-  }, 300);
-  toast('Elegí "Guardar en PDF" en el diálogo de impresión');
-}
-
 /* ================= NÚMEROS ================= */
 var numPer='mes';
-var numMes = hoyISO().slice(0,7);   // mes elegido en el selector (YYYY-MM)
-function numMesElegido(v){
-  if(!v) return;
-  numMes = v; numPer='mesX'; renderNum();
-}
-function mesCortoLargo(ym){ const [y,m]=ym.split('-');
-  return ['','enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][+m]+' de '+y; }
 function renderNum(){
   const PER=[['mes','Este mes'],['3m','3 meses'],['anio','Este año'],['todo','Todo']];
   $('numPeriodo').innerHTML = PER.map(([k,l])=>
-    `<button class="chip sm${numPer===k?' on':''}" onclick="numPer='${k}';renderNum()">${l}</button>`).join('')
-    + `<label class="chip sm${numPer==='mesX'?' on':''}" style="gap:6px;padding:6px 10px 6px 13px">📅
-        <input type="month" id="numMesPick" value="${numMes}" onchange="numMesElegido(this.value)"
-               style="width:auto;min-height:auto;background:transparent;border:none;padding:2px 0;font-size:14px;color:inherit"></label>`;
-  const hoy=new Date(); let desde='0000-00-00', hasta='9999-99-99';
+    `<button class="chip sm${numPer===k?' on':''}" onclick="numPer='${k}';renderNum()">${l}</button>`).join('');
+  const hoy=new Date(); let desde='0000-00-00';
   if(numPer==='mes') desde=hoyISO().slice(0,8)+'01';
   if(numPer==='3m'){ const d=new Date(hoy); d.setMonth(d.getMonth()-3); desde=d.toISOString().slice(0,10); }
   if(numPer==='anio') desde=hoyISO().slice(0,4)+'-01-01';
-  if(numPer==='mesX'){ desde = numMes+'-01'; hasta = numMes+'-31'; }
-  const ts = S.trabajos.filter(t=>t.fecha>=desde && t.fecha<=hasta);
+  const ts = S.trabajos.filter(t=>t.fecha>=desde);
   const tot = t=>(t.ha&&t.precio)?t.ha*t.precio:0;
   const ha = ts.reduce((a,t)=>a+(t.ha||0),0);
   const fact = ts.reduce((a,t)=>a+tot(t),0);
