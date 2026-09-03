@@ -87,6 +87,34 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 .tankrow .qt small.uni{border-bottom:1px dotted #4d90ad;padding:2px 1px 1px;cursor:pointer}
 .tankrow .qt small.uni:active{color:#fff}
 
+/* ---------- grilla de resultados de la tancada (look calculador standalone) ---------- */
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--card2);border:1px solid var(--line);border-radius:15px;padding:14px 12px;text-align:center}
+.stat.hero{background:#14351f;border-color:#2f6b45}
+.stat .k{font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;
+  display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:6px}
+.stat.hero .k{color:#7bd6a0}
+.stat .v{font-size:27px;font-weight:800;letter-spacing:-.6px;line-height:1.05}
+.stat .v.sm{font-size:20px}
+.stat.hero .v{color:var(--accent)}
+.stat .v small{font-size:14px;font-weight:700;color:var(--dim)}
+.stat.hero .v small{color:#7bd6a0}
+.statsub{font-size:11px;color:var(--dim);margin-top:5px;line-height:1.3}
+/* ---------- totales de la mezcla ---------- */
+.meztot{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+.meztot .tot{display:flex;justify-content:space-between;font-size:14px;padding:3px 2px;color:var(--dim)}
+.meztot .tot b{color:var(--txt);font-variant-numeric:tabular-nums;font-weight:800}
+.meztot .tot.agua{color:var(--blue)}
+.meztot .tot.agua b{color:var(--blue)}
+/* ---------- sugerencias de productos más usados ---------- */
+.sugrow:empty{display:none}
+.sugrow{margin:0 0 10px}
+.sugrow .sugttl{font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.chip.sug{background:var(--card2)}
+.chip.sug .n{font-size:11px;color:var(--dim);font-weight:700;margin-left:3px}
+.chip.sug.on{background:#14351f;border-color:var(--accent);color:var(--accent)}
+.chip.sug.on .n{color:#7bd6a0}
+
 /* ---------- buttons ---------- */
 .btn{background:var(--accent2);color:#06120b;font-weight:800;font-size:18px;
   border-radius:15px;padding:17px;width:100%;display:flex;align-items:center;
@@ -288,10 +316,10 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   <!-- ===== BLOQUE SIMPLE: sembrar / cebo / fertilizar ===== -->
   <div class="card soloSimple" id="cardSimple">
     <div class="lbl" id="simpleLbl">Producto</div>
-    <div class="chips mb" id="fRecetasSimple"></div>
+    <div class="sugrow" id="sugSimple"></div>
     <div class="prodline">
       <input class="pn" list="dl-simple" id="sProdNombre" placeholder="Producto"
-             oninput="simpleProd()">
+             oninput="simpleProdNombre()">
       <input class="pd" type="text" inputmode="decimal" id="sProdDosis"
              placeholder="dosis/ha" oninput="simpleProd()">
     </div>
@@ -321,17 +349,24 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       </div>
     </div>
     <button class="btn ghost sm" onclick="usarMaximo()">Llenar el tanque al máximo</button>
-    <div class="tank" id="tancRes" style="display:none;margin-top:12px">
-      <div class="tot" id="tLitros">—</div>
-      <div class="sub" id="tLitrosSub"></div>
-      <div class="tankrow"><span class="nm">Tancadas para el lote</span>
-        <span class="qt" id="tNum">—</span></div>
-      <div class="tankrow"><span class="nm">Última tancada</span>
-        <span class="qt" id="tUltima" style="font-size:15px">—</span></div>
-      <div class="tankrow"><span class="nm">💧 Agua por tancada</span>
-        <span class="qt" id="tAguaT" style="font-size:16px">—</span></div>
-      <div class="tankrow"><span class="nm">💧 Agua total del lote</span>
-        <span class="qt" id="tAguaL" style="font-size:16px">—</span></div>
+    <div class="statgrid" id="tancRes" style="display:none;margin-top:12px">
+      <div class="stat hero">
+        <div class="k">Litros / tancada</div>
+        <div class="v" id="tLitros">—</div>
+        <div class="statsub" id="tLitrosSub"></div>
+      </div>
+      <div class="stat">
+        <div class="k">💧 Agua (lote)</div>
+        <div class="v sm" id="tAguaL">—</div>
+      </div>
+      <div class="stat">
+        <div class="k">N° de tancadas</div>
+        <div class="v" id="tNum">—</div>
+      </div>
+      <div class="stat">
+        <div class="k">Última tancada</div>
+        <div class="v sm" id="tUltima">—</div>
+      </div>
     </div>
   </div>
 
@@ -340,13 +375,14 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 
   <div class="card soloFum" id="cardMezcla">
     <div class="lbl">Mezcla</div>
-    <div class="chips mb" id="fRecetas"></div>
+    <div class="sugrow" id="sugProds"></div>
     <div id="fProds"></div>
     <div class="row" style="margin-top:4px">
       <button class="chip add sm" onclick="addProd()">+ Producto</button>
       <button class="chip add sm" onclick="addAdy()">+ Adyuvante</button>
     </div>
     <div class="hint" id="aguaHint" style="margin-top:8px"></div>
+    <div class="meztot" id="mezTot"></div>
   </div>
 
   <div class="card">
@@ -443,23 +479,15 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       <div class="lbl">Margen que querés ganar (%)</div>
       <input type="text" inputmode="decimal" id="pMargen" class="mb" oninput="guardarParam()">
       <div class="divide"></div>
-      <div class="lbl">Pago a ayudantes (USD/ha)</div>
+      <div class="lbl">Pago a ayudantes (USD/ha en siembra y fertilización)</div>
       <div id="pTarifas"></div>
+      <div class="hint" style="margin-top:6px">En siembra y fertilización se paga esta tarifa completa. En los demás trabajos (fumigar, cebo…) se paga la mitad.</div>
       <div class="divide"></div>
-      <div class="lbl">Gasoil del vehículo (para el traslado)</div>
-      <div class="row mb">
-        <div>
-          <div class="lbl">Rendimiento (km/L)</div>
-          <input type="text" inputmode="decimal" id="pRendimiento" oninput="guardarParam()">
-        </div>
-        <div>
-          <div class="lbl">Precio gasoil (USD/L)</div>
-          <input type="text" inputmode="decimal" id="pPrecioGasoil" oninput="guardarParam()">
-        </div>
-      </div>
+      <div class="lbl">Costo del vehículo por km (USD)</div>
+      <input type="text" inputmode="decimal" id="pCostoKm" class="mb" oninput="guardarParam()">
       <div class="hint">El alquiler del dron se cuenta por cada hectárea de todos los trabajos.
-        El pago a cada ayudante se suma solo en los trabajos donde lo elegís a él. El gasoil
-        del vehículo se estima con la distancia de cada trabajo (ida y vuelta).</div>
+        El pago a cada ayudante se suma solo en los trabajos donde lo elegís a él. El costo del
+        viaje se calcula con la distancia de cada trabajo (ida y vuelta) × este costo por km.</div>
     </div>
   </div>
 
@@ -532,9 +560,31 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 <script>
 /* ================= DATOS ================= */
 var SEED = {"unidades":{"Abamet":"L","Paraquat":"L","Speed weed maxion rojo":"L","Karate":"L","Virantra":"L","MSO":"L","Lexus":"L","Agral 90":"L","Criptón XPro":"L","Rizospray Extremo":"L","Grasidim":"L","Raigras":"kg","Quintal xtra":"L","Uptake":"L","Avena":"kg","Gramini Elite":"L","Glifo":"L","Expedition":"L","Spereel":"L","Acepan Pro":"L","Triple pack":"L","Acelon pro":"L","Panzer":"L","Sulfamonio":"L","Tordon 101":"L","Vicia":"kg","Trébol persa":"kg","Lampo":"kg","Matabibo":"kg","Colza":"kg","Silwet":"L","Tordon":"L","Punch":"L","Axial":"L","Paradigm":"L","Version":"L","Preside":"L","Canvas":"L","Merit plus":"L","Corrector":"L","MCPA":"L","ProAsper":"L","BioPlus":"L","Grasidim Full":"L","Potent":"L","Gliserb":"L","Amina":"L","Boydal":"L","Venceweed":"L","Nexxo":"L","Amina Enlist":"L","Lontrel":"L","Hussar Plus":"L","Acuron":"L","Dual Gold":"L","Rainvel":"L","Sungain":"L","Halaxy":"L","Skystar":"L","Adengo":"L","Diquat":"L","Fixfilm":"L","Urea":"kg","Alsystin":"L","Foliar Blend":"L","Glufosinato":"L","Verdict Max":"L","Pampa Max":"L","KCl":"kg","Saflunex":"L","Heat":"L","Kornkali":"kg","Coron 10":"L","Fanafol Hierro":"L","Grap":"L","Dusilan":"L","Escolta":"L","Vigia":"L","Triber Xtra":"L","Ligier Grass":"L","Acefato":"L","Agril":"L","A-Oil":"L","Grap Supergun":"L","Diuron":"L","KS5":"L","Aceite":"L","Wuxal":"L","Imagen":"L","Detox":"L","Starane":"L","Mezcla Lotus":"kg","Engeo":"L","Scrum":"L","Galaxyfop":"L","Grap Zinc":"L","Hormiga":"kg","Bolta":"kg","Lotus Rincon":"kg","Entec 26":"kg","Arsenal":"L","Bioplus":"L","25-33":"kg","0-34":"kg","Unico":"L"},"trabajos":[{"id":"cbf3859a","fecha":"2025-02-19","tipo":"Fumigar","cliente":"Dubach","est":"Grishka","lote":"","ha":35.0,"precio":null,"viento":3.0,"caldo":15.0,"prods":[{"n":"Abamet","d":0.8}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"3bc8e68d","fecha":"2025-02-20","tipo":"Fumigar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Paj1","ha":31.6,"precio":13.0,"viento":2.0,"caldo":12.0,"prods":[{"n":"Paraquat","d":3.5}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":8.0,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"0407274b","fecha":"2025-02-20","tipo":"Fumigar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Paj2","ha":27.4,"precio":13.0,"viento":5.0,"caldo":12.0,"prods":[{"n":"Paraquat","d":3.5}],"adys":[{"n":"Speed weed maxion rojo","d":50.0}],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"ec2bfad8","fecha":"2025-02-21","tipo":"Fumigar","cliente":"Nalmer","est":"El Araza","lote":"Pivot 6","ha":58.0,"precio":13.0,"viento":7.0,"caldo":12.0,"prods":[{"n":"Paraquat","d":2.0}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":5.0,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"4e8c8a79","fecha":"2025-02-21","tipo":"Fumigar","cliente":"Nalmer","est":"El Araza","lote":"","ha":31.0,"precio":13.0,"viento":4.0,"caldo":11.0,"prods":[{"n":"Karate","d":0.8},{"n":"Virantra","d":0.05}],"adys":[{"n":"MSO","d":0.12}],"horas":3.5,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"9e6e86fc","fecha":"2025-02-24","tipo":"Fumigar","cliente":"Frank Klaassen","est":"Tambo","lote":"","ha":14.7,"precio":18.0,"viento":6.0,"caldo":15.0,"prods":[{"n":"Lexus","d":1.8}],"adys":[{"n":"Agral 90","d":0.18}],"horas":3.0,"fact":true,"cobr":true,"op":"","ay":""},{"id":"2e22efc7","fecha":"2025-02-24","tipo":"Fumigar","cliente":"Alvaro","est":"Chito","lote":"","ha":17.0,"precio":20.0,"viento":10.0,"caldo":15.0,"prods":[{"n":"Criptón XPro","d":0.45},{"n":"Virantra","d":0.05}],"adys":[{"n":"Rizospray Extremo","d":0.06}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"e4a2ef55","fecha":"2025-02-25","tipo":"Fumigar","cliente":"Alvaro","est":"Chito","lote":"","ha":28.0,"precio":20.0,"viento":6.0,"caldo":15.0,"prods":[{"n":"Criptón XPro","d":0.45},{"n":"Virantra","d":0.05},{"n":"Grasidim","d":0.7}],"adys":[{"n":"Rizospray Extremo","d":0.06}],"horas":4.0,"fact":false,"cobr":true,"op":"","ay":""},{"id":"65a6e681","fecha":"2025-02-26","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Paj Largo","ha":43.0,"precio":17.0,"viento":4.0,"caldo":null,"prods":[{"n":"Raigras","d":35.0}],"adys":[],"horas":8.0,"fact":true,"cobr":true,"op":"","ay":"Tomas"},{"id":"106d294e","fecha":"2025-02-27","tipo":"Fumigar","cliente":"Alvaro","est":"Chito","lote":"","ha":9.0,"precio":20.0,"viento":4.0,"caldo":15.0,"prods":[{"n":"Criptón XPro","d":0.45},{"n":"Virantra","d":0.05},{"n":"Grasidim","d":0.7}],"adys":[{"n":"Rizospray Extremo","d":0.06}],"horas":1.5,"fact":false,"cobr":true,"op":"","ay":""},{"id":"42b9a065","fecha":"2025-03-03","tipo":"Fumigar","cliente":"Alvaro","est":"Erwin","lote":"ER24","ha":24.0,"precio":20.0,"viento":5.0,"caldo":15.0,"prods":[{"n":"Criptón XPro","d":0.45},{"n":"Virantra","d":0.05}],"adys":[{"n":"Rizospray Extremo","d":0.06}],"horas":4.0,"fact":false,"cobr":true,"op":"","ay":""},{"id":"efece529","fecha":"2025-03-04","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Paj 1 y 2","ha":55.0,"precio":15.0,"viento":4.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":8.0,"fact":true,"cobr":true,"op":"","ay":"Tomas"},{"id":"2869d0a8","fecha":"2025-03-04","tipo":"Fumigar","cliente":"Alvaro","est":"San Ramon","lote":"SR32","ha":16.0,"precio":20.0,"viento":2.0,"caldo":15.0,"prods":[{"n":"Criptón XPro","d":0.45},{"n":"Virantra","d":0.11},{"n":"Grasidim","d":0.75}],"adys":[{"n":"Rizospray Extremo","d":0.06}],"horas":2.5,"fact":false,"cobr":true,"op":"","ay":""},{"id":"00796a9b","fecha":"2025-03-05","tipo":"Fumigar","cliente":"Alvaro","est":"San Ramon","lote":"SR32","ha":16.0,"precio":20.0,"viento":10.0,"caldo":15.0,"prods":[{"n":"Criptón XPro","d":0.45},{"n":"Virantra","d":0.11},{"n":"Grasidim","d":0.75}],"adys":[{"n":"Rizospray Extremo","d":0.06}],"horas":3.0,"fact":false,"cobr":true,"op":"","ay":""},{"id":"df67457c","fecha":"2025-03-05","tipo":"Fumigar","cliente":"Alvaro","est":"Rostan","lote":"","ha":3.0,"precio":20.0,"viento":7.0,"caldo":15.0,"prods":[{"n":"Criptón XPro","d":0.45}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"17d24254","fecha":"2025-03-05","tipo":"Fumigar","cliente":"Alvaro","est":"Erwin","lote":"29","ha":29.0,"precio":20.0,"viento":2.0,"caldo":15.0,"prods":[{"n":"Criptón XPro","d":0.45},{"n":"Virantra","d":0.11}],"adys":[{"n":"Rizospray Extremo","d":0.06}],"horas":3.5,"fact":false,"cobr":true,"op":"","ay":""},{"id":"39ed61cb","fecha":"2025-03-06","tipo":"Fumigar","cliente":"Jimmy Holstein","est":"San Javier","lote":"","ha":29.0,"precio":16.0,"viento":13.0,"caldo":10.0,"prods":[{"n":"Quintal xtra","d":0.1}],"adys":[{"n":"Uptake","d":0.05}],"horas":2.0,"fact":false,"cobr":true,"op":"","ay":"Tomas"},{"id":"05c9150d","fecha":"2025-03-06","tipo":"Sembrar","cliente":"Alvaro","est":"Capincho","lote":"","ha":17.5,"precio":30.0,"viento":12.0,"caldo":null,"prods":[{"n":"Avena","d":60.0}],"adys":[],"horas":3.0,"fact":false,"cobr":true,"op":"","ay":""},{"id":"839a8639","fecha":"2025-03-06","tipo":"Sembrar","cliente":"Alvaro","est":"Carrique","lote":"","ha":44.0,"precio":30.0,"viento":4.0,"caldo":null,"prods":[{"n":"Avena","d":60.0}],"adys":[],"horas":8.0,"fact":false,"cobr":true,"op":"","ay":""},{"id":"b43a34e3","fecha":"2025-03-07","tipo":"Fumigar","cliente":"Cina Cina","est":"Villa asuncion","lote":"3 lotes con árboles","ha":12.0,"precio":13.0,"viento":9.0,"caldo":12.0,"prods":[{"n":"Gramini Elite","d":0.55}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":2.5,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"86de7893","fecha":"2025-03-07","tipo":"Sembrar","cliente":"Nalmer","est":"La Martita","lote":"Bajo maiz","ha":54.0,"precio":15.0,"viento":9.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":10.0,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"4d967c77","fecha":"2025-03-10","tipo":"Fumigar","cliente":"Dubach","est":"Casa","lote":"","ha":13.5,"precio":null,"viento":null,"caldo":null,"prods":[{"n":"Glifo","d":2.0}],"adys":[],"horas":1.5,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"d6b61449","fecha":"2025-03-11","tipo":"Fumigar","cliente":"Dubach","est":"Grishka","lote":"","ha":35.0,"precio":null,"viento":3.0,"caldo":10.0,"prods":[{"n":"Grasidim","d":0.7},{"n":"Expedition","d":0.3},{"n":"Spereel","d":0.4}],"adys":[],"horas":3.0,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"766e7e82","fecha":"2025-03-13","tipo":"Fumigar","cliente":"Nalmer","est":"El Araza","lote":"Pivot 2a","ha":96.0,"precio":13.0,"viento":9.0,"caldo":10.0,"prods":[{"n":"Grasidim","d":1.0},{"n":"Glifo","d":3.0},{"n":"Acepan Pro","d":0.35}],"adys":[{"n":"Uptake","d":0.05}],"horas":10.0,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"cbdff945","fecha":"2025-03-14","tipo":"Fumigar","cliente":"Nalmer","est":"El Araza","lote":"11 y 3b","ha":78.0,"precio":13.0,"viento":6.0,"caldo":10.0,"prods":[{"n":"Triple pack","d":0.4},{"n":"Acelon pro","d":0.35}],"adys":[{"n":"Rizospray Extremo","d":0.2}],"horas":7.0,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"df27bf97","fecha":"2025-03-17","tipo":"Fumigar","cliente":"Frank Klaassen","est":"Tambo","lote":"","ha":9.0,"precio":18.0,"viento":6.0,"caldo":15.0,"prods":[{"n":"Panzer","d":3.0},{"n":"Sulfamonio","d":1.5}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"030da64c","fecha":"2025-03-25","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Pivot 1","ha":26.0,"precio":15.0,"viento":8.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"e9c77f02","fecha":"2025-03-25","tipo":"Fumigar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Árboles","ha":10.0,"precio":13.0,"viento":9.0,"caldo":40.0,"prods":[{"n":"Tordon 101","d":5.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"3f889988","fecha":"2025-03-27","tipo":"Sembrar","cliente":"Nalmer","est":"Santa Teresa","lote":"5","ha":25.0,"precio":15.0,"viento":7.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"f05268cf","fecha":"2025-03-27","tipo":"Sembrar","cliente":"Nalmer","est":"Santa Teresa","lote":"5","ha":75.0,"precio":15.0,"viento":8.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"02c2e7b2","fecha":"2025-03-28","tipo":"Fumigar","cliente":"Nalmer","est":"El Araza","lote":"Pvt6 p1","ha":56.0,"precio":13.0,"viento":8.0,"caldo":8.0,"prods":[{"n":"Glifo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"89c04297","fecha":"2025-03-29","tipo":"Sembrar","cliente":"Nalmer","est":"La Martita","lote":"","ha":100.0,"precio":15.0,"viento":8.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"b4693cf1","fecha":"2025-04-02","tipo":"Sembrar","cliente":"Nalmer","est":"La Martita","lote":"","ha":55.0,"precio":15.0,"viento":4.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"70314993","fecha":"2025-04-05","tipo":"Sembrar","cliente":"Dubach","est":"Grishka","lote":"","ha":35.0,"precio":null,"viento":null,"caldo":null,"prods":[{"n":"Vicia","d":45.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"2ad25530","fecha":"2025-04-05","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Entrada","ha":42.0,"precio":15.0,"viento":5.0,"caldo":null,"prods":[{"n":"Vicia","d":40.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"959bb7cb","fecha":"2025-04-06","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"2 lotes contra maletas","ha":117.0,"precio":15.0,"viento":12.0,"caldo":null,"prods":[{"n":"Vicia","d":40.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"0e4d5419","fecha":"2025-04-10","tipo":"Sembrar","cliente":"Cina Cina","est":"Abrojal","lote":"","ha":35.0,"precio":15.0,"viento":7.0,"caldo":null,"prods":[{"n":"Trébol persa","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"81467de1","fecha":"2025-04-16","tipo":"Sembrar","cliente":"Nalmer","est":"Dolores","lote":"","ha":274.2,"precio":15.0,"viento":5.0,"caldo":null,"prods":[{"n":"Vicia","d":40.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"Tomas","ay":"Santi"},{"id":"3e6d9bb5","fecha":"2025-04-20","tipo":"Cebo","cliente":"Nalmer","est":"Santa Teresa","lote":"","ha":42.0,"precio":13.0,"viento":3.0,"caldo":null,"prods":[{"n":"Lampo","d":5.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"Tomas","ay":"Santi"},{"id":"e4638b1e","fecha":"2025-04-22","tipo":"Cebo","cliente":"Nalmer","est":"Santa Teresa","lote":"","ha":75.0,"precio":13.0,"viento":5.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"Tomas","ay":"Santi"},{"id":"f7aa9b1d","fecha":"2025-04-23","tipo":"Cebo","cliente":"Nalmer","est":"Dolores","lote":"","ha":210.5,"precio":13.0,"viento":5.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"Tomas","ay":"Santi"},{"id":"7ae3a5dc","fecha":"2025-04-23","tipo":"Fumigar","cliente":"Frank Klaassen","est":"Tambo","lote":"","ha":9.0,"precio":18.0,"viento":4.0,"caldo":null,"prods":[],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"Tomas","ay":"Santi"},{"id":"0ddc722a","fecha":"2025-04-24","tipo":"Cebo","cliente":"Cina Cina","est":"Villa asuncion","lote":"","ha":39.2,"precio":13.0,"viento":4.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"Tomas","ay":"Santi"},{"id":"ff935c7f","fecha":"2025-04-24","tipo":"Cebo","cliente":"Cina Cina","est":"Villa asuncion","lote":"","ha":55.0,"precio":13.0,"viento":6.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"Tomas","ay":"Santi"},{"id":"e433d9df","fecha":"2025-04-24","tipo":"Fumigar","cliente":"Negro","est":"","lote":"","ha":12.0,"precio":null,"viento":6.0,"caldo":null,"prods":[{"n":"Glifo","d":2.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"ec887244","fecha":"2025-04-26","tipo":"Sembrar","cliente":"Nalmer","est":"El Araza","lote":"03a","ha":120.0,"precio":15.0,"viento":4.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"Tomas","ay":"Santi"},{"id":"826b26de","fecha":"2025-04-27","tipo":"Sembrar","cliente":"Nalmer","est":"El Araza","lote":"03b","ha":38.0,"precio":15.0,"viento":4.0,"caldo":null,"prods":[{"n":"Trébol persa","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"Tomas","ay":"Santi"},{"id":"71278d1d","fecha":"2025-04-29","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"","ha":5.0,"precio":15.0,"viento":4.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"Tomas","ay":"Santi"},{"id":"dd4a3075","fecha":"2025-04-29","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"","ha":5.0,"precio":15.0,"viento":5.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"Tomas","ay":"Santi"},{"id":"6d729881","fecha":"2025-04-29","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"","ha":55.0,"precio":15.0,"viento":4.0,"caldo":null,"prods":[{"n":"Vicia","d":20.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"Tomas","ay":"Santi"},{"id":"d8b32eee","fecha":"2025-05-09","tipo":"Cebo","cliente":"Nalmer","est":"Los tientos","lote":"","ha":117.0,"precio":13.0,"viento":5.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"f5e22712","fecha":"2025-05-09","tipo":"Cebo","cliente":"Nalmer","est":"Las maulas","lote":"","ha":47.0,"precio":13.0,"viento":5.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"e1e8ec00","fecha":"2025-05-11","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"","ha":1.2,"precio":15.0,"viento":4.0,"caldo":null,"prods":[{"n":"Colza","d":10.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"d80e267d","fecha":"2025-05-11","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"","ha":3.0,"precio":15.0,"viento":4.0,"caldo":null,"prods":[{"n":"Raigras","d":25.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"063a166a","fecha":"2025-05-21","tipo":"Cebo","cliente":"Nalmer","est":"Santa Teresa","lote":"","ha":70.0,"precio":13.0,"viento":3.0,"caldo":null,"prods":[{"n":"Matabibo","d":2.5}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"d14e7f00","fecha":"2025-05-22","tipo":"Cebo","cliente":"Nalmer","est":"Aguila","lote":"","ha":87.0,"precio":13.0,"viento":2.0,"caldo":null,"prods":[{"n":"Matabibo","d":2.5}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"d5d27a46","fecha":"2025-05-30","tipo":"Fumigar","cliente":"Jimmy Holstein","est":"","lote":"","ha":29.0,"precio":16.0,"viento":6.0,"caldo":14.0,"prods":[{"n":"Panzer","d":null}],"adys":[{"n":"Silwet","d":40.0}],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Renzo"},{"id":"ec21eff8","fecha":"2025-07-10","tipo":"Fumigar","cliente":"Negro","est":"","lote":"","ha":12.0,"precio":null,"viento":6.0,"caldo":10.0,"prods":[{"n":"Panzer","d":3.0},{"n":"Tordon","d":0.15}],"adys":[{"n":"Punch","d":null}],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Renzo"},{"id":"42e263b1","fecha":"2025-07-29","tipo":"Fumigar","cliente":"Henry","est":"Casa","lote":"","ha":38.0,"precio":16.0,"viento":11.0,"caldo":10.0,"prods":[{"n":"Axial","d":0.8},{"n":"Paradigm","d":25.0}],"adys":[{"n":"Version","d":0.05}],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Renzo"},{"id":"c6540a16","fecha":"2025-07-29","tipo":"Fumigar","cliente":"Burkhard","est":"Tambo","lote":"","ha":7.5,"precio":18.0,"viento":8.0,"caldo":10.0,"prods":[{"n":"Preside","d":0.5}],"adys":[{"n":"Punch","d":0.1}],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Renzo"},{"id":"42894012","fecha":"2025-07-29","tipo":"Fumigar","cliente":"Tija","est":"Molina","lote":"Fondo","ha":21.0,"precio":17.0,"viento":5.0,"caldo":10.0,"prods":[{"n":"Canvas","d":1.1},{"n":"Merit plus","d":null}],"adys":[{"n":"Corrector","d":0.1},{"n":"Agral 90","d":0.05}],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Renzo"},{"id":"115fbde6","fecha":"2025-07-30","tipo":"Fumigar","cliente":"Tija","est":"Molina","lote":"Casa","ha":18.2,"precio":17.0,"viento":12.0,"caldo":10.0,"prods":[{"n":"Canvas","d":1.1},{"n":"Merit plus","d":null}],"adys":[{"n":"Corrector","d":0.1},{"n":"Agral 90","d":0.05}],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Renzo"},{"id":"203454b2","fecha":"2025-07-30","tipo":"Fumigar","cliente":"Tija","est":"Novak","lote":"Fondo","ha":23.5,"precio":17.0,"viento":14.0,"caldo":10.0,"prods":[{"n":"Canvas","d":1.1},{"n":"Merit plus","d":null}],"adys":[{"n":"Corrector","d":0.1},{"n":"Agral 90","d":0.05}],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Renzo"},{"id":"428cf27e","fecha":"2025-07-30","tipo":"Fumigar","cliente":"Tija","est":"Novak","lote":"Frente","ha":23.5,"precio":17.0,"viento":13.0,"caldo":10.0,"prods":[{"n":"Canvas","d":1.1},{"n":"Merit plus","d":null}],"adys":[{"n":"Corrector","d":0.1},{"n":"Agral 90","d":0.05}],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Renzo"},{"id":"9d76926c","fecha":"2025-07-31","tipo":"Fumigar","cliente":"Davila","est":"San Rafael","lote":"","ha":11.5,"precio":16.0,"viento":10.0,"caldo":10.0,"prods":[{"n":"MCPA","d":1.0}],"adys":[{"n":"ProAsper","d":0.1}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"413de7c8","fecha":"2025-08-05","tipo":"Fumigar","cliente":"Miguel Viera","est":"","lote":"","ha":13.7,"precio":16.0,"viento":6.0,"caldo":10.0,"prods":[{"n":"BioPlus","d":1.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"e8878593","fecha":"2025-08-26","tipo":"Fumigar","cliente":"Dubach","est":"Grishka","lote":"","ha":35.0,"precio":null,"viento":5.0,"caldo":10.0,"prods":[{"n":"Panzer","d":3.0},{"n":"Grasidim Full","d":0.4}],"adys":[{"n":"Punch","d":0.1},{"n":"Potent","d":0.1}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"01ab6b4a","fecha":"2025-08-28","tipo":"Fumigar","cliente":"Miguel Viera","est":"","lote":"","ha":13.7,"precio":16.0,"viento":7.0,"caldo":11.0,"prods":[{"n":"Gliserb","d":4.0},{"n":"Amina","d":1.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"5003ce2d","fecha":"2025-08-28","tipo":"Fumigar","cliente":"Erwin Regehr","est":"Colonia","lote":"Medio","ha":11.9,"precio":18.0,"viento":6.0,"caldo":12.0,"prods":[{"n":"Boydal","d":0.1},{"n":"Venceweed","d":0.85}],"adys":[{"n":"Punch","d":0.05},{"n":"Potent","d":0.1}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"383c08d3","fecha":"2025-08-29","tipo":"Fumigar","cliente":"Tija","est":"Galpon","lote":"Manchoneo","ha":10.4,"precio":17.0,"viento":14.0,"caldo":10.0,"prods":[{"n":"Nexxo","d":2.0}],"adys":[{"n":"Agral 90","d":0.1},{"n":"Corrector","d":0.1}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"950b2209","fecha":"2025-09-05","tipo":"Fumigar","cliente":"Dubach","est":"Grishka","lote":"","ha":35.0,"precio":null,"viento":8.0,"caldo":8.0,"prods":[{"n":"Amina Enlist","d":1.7},{"n":"Lontrel","d":0.29}],"adys":[{"n":"Punch","d":null},{"n":"Potent","d":null}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"705ac06a","fecha":"2025-09-10","tipo":"Fumigar","cliente":"Negro","est":"","lote":"","ha":12.0,"precio":null,"viento":7.0,"caldo":10.0,"prods":[{"n":"Canvas","d":1.1},{"n":"Paradigm","d":25.0},{"n":"Hussar Plus","d":0.2}],"adys":[{"n":"Punch","d":null},{"n":"Potent","d":null}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"29b65b3c","fecha":"2025-09-15","tipo":"Fumigar","cliente":"Miguel Viera","est":"","lote":"","ha":13.7,"precio":16.0,"viento":5.0,"caldo":12.0,"prods":[{"n":"Gliserb","d":1.5},{"n":"Acuron","d":0.8},{"n":"Dual Gold","d":0.8},{"n":"BioPlus","d":1.0}],"adys":[{"n":"Punch","d":null},{"n":"Potent","d":null}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"5446818d","fecha":"2025-09-18","tipo":"Fumigar","cliente":"Dubach","est":"Negro","lote":"Sorgo","ha":24.0,"precio":null,"viento":6.0,"caldo":10.0,"prods":[{"n":"Amina","d":1.6},{"n":"Rainvel","d":0.2},{"n":"Sungain","d":0.13}],"adys":[{"n":"Punch","d":null},{"n":"Potent","d":null}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"243b5b8a","fecha":"2025-09-23","tipo":"Fumigar","cliente":"Dubach","est":"Negro","lote":"Sorgo","ha":24.0,"precio":null,"viento":4.0,"caldo":10.0,"prods":[{"n":"Glifo","d":1.0},{"n":"Grasidim Full","d":0.8},{"n":"Halaxy","d":0.5}],"adys":[{"n":"Punch","d":null},{"n":"Potent","d":null}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"461ccd6a","fecha":"2025-10-01","tipo":"Fumigar","cliente":"Dubach","est":"Negro","lote":"","ha":12.0,"precio":null,"viento":6.0,"caldo":13.0,"prods":[{"n":"Skystar","d":0.4}],"adys":[{"n":"Punch","d":null},{"n":"Potent","d":null}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"7daa09a8","fecha":"2025-10-07","tipo":"Fumigar","cliente":"Dubach","est":"Grishka","lote":"","ha":35.0,"precio":null,"viento":5.0,"caldo":15.0,"prods":[{"n":"Panzer","d":2.5},{"n":"Adengo","d":0.35}],"adys":[{"n":"Punch","d":null},{"n":"Potent","d":null}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"47266141","fecha":"2025-10-07","tipo":"Cebo","cliente":"Nalmer","est":"Las maulas","lote":"1 - 2","ha":101.0,"precio":13.0,"viento":6.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"c88570a9","fecha":"2025-10-08","tipo":"Cebo","cliente":"Nalmer","est":"El Aguila","lote":"4 - 5 - 6","ha":81.0,"precio":13.0,"viento":6.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"88945a37","fecha":"2025-10-08","tipo":"Cebo","cliente":"Nalmer","est":"Ruta 96","lote":"64","ha":77.9,"precio":13.0,"viento":7.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"6fb55e8c","fecha":"2025-10-08","tipo":"Cebo","cliente":"Nalmer","est":"Ruta 96","lote":"Ruta 96","ha":40.5,"precio":13.0,"viento":3.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"37deab90","fecha":"2025-10-09","tipo":"Cebo","cliente":"Nalmer","est":"Dolores","lote":"Ruta 96","ha":25.0,"precio":13.0,"viento":14.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"aac1714b","fecha":"2025-10-09","tipo":"Cebo","cliente":"Nalmer","est":"Dolores","lote":"Sosa","ha":107.0,"precio":13.0,"viento":15.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"f18fff0a","fecha":"2025-10-09","tipo":"Cebo","cliente":"Nalmer","est":"Dolores","lote":"R96 calcáreo","ha":20.7,"precio":13.0,"viento":7.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"c29814c6","fecha":"2025-10-09","tipo":"Cebo","cliente":"Nalmer","est":"Santa Teresa","lote":"5","ha":70.0,"precio":13.0,"viento":6.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"ca2191d2","fecha":"2025-10-10","tipo":"Cebo","cliente":"Nalmer","est":"Santa Teresa","lote":"5","ha":30.0,"precio":13.0,"viento":4.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"f1adf32e","fecha":"2025-10-10","tipo":"Cebo","cliente":"Nalmer","est":"Santa Teresa","lote":"4","ha":43.42,"precio":13.0,"viento":10.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"fd39ef66","fecha":"2025-10-10","tipo":"Cebo","cliente":"Nalmer","est":"Santa Teresa","lote":"2","ha":41.2,"precio":13.0,"viento":12.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"759a90cf","fecha":"2025-10-14","tipo":"Fumigar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Pajonales","ha":39.5,"precio":10.0,"viento":8.0,"caldo":10.0,"prods":[{"n":"Glifo","d":3.0}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"3dcfe8b7","fecha":"2025-10-14","tipo":"Fumigar","cliente":"Alvaro","est":"Bosinski","lote":"Entrada refugio","ha":3.0,"precio":20.0,"viento":4.0,"caldo":20.0,"prods":[{"n":"Quintal xtra","d":0.14}],"adys":[{"n":"Rizospray Extremo","d":0.06}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"34627ca1","fecha":"2025-10-15","tipo":"Fumigar","cliente":"Dubach","est":"Casa","lote":"RB","ha":9.5,"precio":null,"viento":5.0,"caldo":20.0,"prods":[{"n":"Panzer","d":4.0},{"n":"Amina Enlist","d":2.0},{"n":"Grasidim Full","d":0.7}],"adys":[{"n":"Punch","d":null},{"n":"Potent","d":null}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"b23c1fdc","fecha":"2025-10-22","tipo":"Fumigar","cliente":"Nalmer","est":"Cabure","lote":"1","ha":108.0,"precio":11.0,"viento":6.0,"caldo":10.0,"prods":[{"n":"Diquat","d":2.0},{"n":"Fixfilm","d":2.0}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"e477be33","fecha":"2025-10-29","tipo":"Fertilizar","cliente":"Miguel Viera","est":"","lote":"","ha":13.7,"precio":25.0,"viento":7.0,"caldo":null,"prods":[{"n":"Urea","d":100.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"4c701a97","fecha":"2025-10-29","tipo":"Fumigar","cliente":"Miguel Viera","est":"","lote":"","ha":1.6,"precio":16.0,"viento":8.0,"caldo":12.0,"prods":[{"n":"Alsystin","d":0.15}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"f63435a6","fecha":"2025-10-30","tipo":"Fumigar","cliente":"Nalmer","est":"La Esmeralda","lote":"Biznaga","ha":97.0,"precio":11.0,"viento":5.0,"caldo":8.0,"prods":[{"n":"Diquat","d":2.0}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"c658979e","fecha":"2025-10-30","tipo":"Fumigar","cliente":"Dubach","est":"Casa","lote":"","ha":10.0,"precio":null,"viento":7.0,"caldo":14.0,"prods":[{"n":"Diquat","d":2.0},{"n":"Foliar Blend","d":1.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"c8d1f7f3","fecha":"2025-10-31","tipo":"Fumigar","cliente":"Nalmer","est":"La Martita","lote":"8 y 2","ha":61.8,"precio":11.0,"viento":5.0,"caldo":8.0,"prods":[{"n":"Glifo","d":2.5}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"03cc04a1","fecha":"2025-11-01","tipo":"Fumigar","cliente":"Alvaro","est":"San Ramon","lote":"14 + 16","ha":30.0,"precio":17.0,"viento":10.0,"caldo":15.0,"prods":[{"n":"Glufosinato","d":2.0}],"adys":[{"n":"Punch","d":0.1}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"d7c8036d","fecha":"2025-11-01","tipo":"Fumigar","cliente":"Dubach","est":"Grishka","lote":"Refugio","ha":3.0,"precio":null,"viento":2.0,"caldo":20.0,"prods":[{"n":"Alsystin","d":0.2}],"adys":[{"n":"Punch","d":0.1}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"92f115a8","fecha":"2025-11-01","tipo":"Fumigar","cliente":"Alvaro","est":"Bosinski","lote":"18 + 12","ha":30.0,"precio":17.0,"viento":4.0,"caldo":15.0,"prods":[{"n":"Glufosinato","d":2.0}],"adys":[{"n":"Punch","d":0.05}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"40ee2f35","fecha":"2025-11-02","tipo":"Fumigar","cliente":"Garcia","est":"Puerto viejo","lote":"","ha":20.0,"precio":15.0,"viento":3.0,"caldo":11.0,"prods":[{"n":"Panzer","d":3.0},{"n":"Verdict Max","d":0.15}],"adys":[{"n":"Uptake","d":0.1}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"d9cedabb","fecha":"2025-11-03","tipo":"Fumigar","cliente":"Marvin","est":"Espinillo","lote":"Carinata","ha":127.0,"precio":15.0,"viento":6.0,"caldo":8.0,"prods":[{"n":"Pampa Max","d":1.5}],"adys":[{"n":"Potent","d":0.05}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"6dc078e9","fecha":"2025-11-04","tipo":"Fumigar","cliente":"Nalmer","est":"Cabure","lote":"4","ha":100.0,"precio":11.0,"viento":4.0,"caldo":8.0,"prods":[{"n":"Glifo","d":3.5}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"b3289d4b","fecha":"2025-11-08","tipo":"Fertilizar","cliente":"Alvaro","est":"Bellaco","lote":"","ha":17.0,"precio":20.0,"viento":4.0,"caldo":null,"prods":[{"n":"KCl","d":55.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"0652dd04","fecha":"2025-11-09","tipo":"Fumigar","cliente":"Nalmer","est":"Cabure","lote":"4","ha":22.7,"precio":11.0,"viento":4.0,"caldo":9.0,"prods":[{"n":"Glifo","d":3.5},{"n":"Saflunex","d":0.07}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"8484953d","fecha":"2025-11-09","tipo":"Fumigar","cliente":"Nalmer","est":"Valle de Soba","lote":"2","ha":69.0,"precio":11.0,"viento":4.0,"caldo":8.0,"prods":[{"n":"Glifo","d":3.5},{"n":"Saflunex","d":0.07}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"c4f8e5d9","fecha":"2025-11-10","tipo":"Fumigar","cliente":"Nalmer","est":"Doña Juana","lote":"1","ha":63.5,"precio":11.0,"viento":5.0,"caldo":8.0,"prods":[{"n":"Glifo","d":3.5},{"n":"Saflunex","d":0.07}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"509da913","fecha":"2025-11-10","tipo":"Fumigar","cliente":"Nalmer","est":"Campanilla","lote":"46","ha":77.4,"precio":11.0,"viento":4.0,"caldo":8.0,"prods":[{"n":"Diquat","d":3.0}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"4fb14913","fecha":"2025-11-11","tipo":"Fumigar","cliente":"Nalmer","est":"Rolon","lote":"2","ha":44.0,"precio":11.0,"viento":5.0,"caldo":8.0,"prods":[{"n":"Glifo","d":3.5},{"n":"Heat","d":0.07}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"c6b8c433","fecha":"2025-11-13","tipo":"Fumigar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Cerro Payun","ha":39.2,"precio":10.0,"viento":5.0,"caldo":8.0,"prods":[{"n":"Glifo","d":2.5},{"n":"Heat","d":0.05}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"9cf7a9c7","fecha":"2025-11-13","tipo":"Fumigar","cliente":"Cina Cina","est":"Villa asuncion","lote":"","ha":55.0,"precio":10.0,"viento":3.0,"caldo":8.0,"prods":[{"n":"Glifo","d":2.5},{"n":"Heat","d":0.05}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"6ae4d7da","fecha":"2025-11-15","tipo":"Fertilizar","cliente":"Alvaro","est":"Bellaco","lote":"Maiz","ha":96.7,"precio":20.0,"viento":4.0,"caldo":null,"prods":[{"n":"Kornkali","d":61.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Tomas"},{"id":"14037659","fecha":"2025-11-18","tipo":"Fertilizar","cliente":"Garcia","est":"Puerto viejo","lote":"","ha":20.0,"precio":25.0,"viento":13.0,"caldo":null,"prods":[{"n":"Urea","d":100.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"f09043ca","fecha":"2025-11-18","tipo":"Cebo","cliente":"Nalmer","est":"Dolores","lote":"Sosa","ha":116.0,"precio":12.0,"viento":11.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"91885ad2","fecha":"2025-11-25","tipo":"Fertilizar","cliente":"Miguel Viera","est":"","lote":"","ha":13.7,"precio":22.0,"viento":6.0,"caldo":null,"prods":[{"n":"Urea","d":73.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"50dc4d79","fecha":"2025-12-01","tipo":"Fertilizar","cliente":"Garcia","est":"Puerto viejo","lote":"","ha":20.0,"precio":25.0,"viento":6.0,"caldo":null,"prods":[{"n":"Urea","d":100.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"4226d23c","fecha":"2025-12-02","tipo":"Fumigar","cliente":"Ralph Wiens","est":"Cooperativa","lote":"","ha":15.8,"precio":18.0,"viento":5.0,"caldo":null,"prods":[{"n":"Coron 10","d":25.0}],"adys":[{"n":"Punch","d":0.1}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"750ad1cf","fecha":"2025-12-05","tipo":"Fumigar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Entrada","ha":25.6,"precio":10.0,"viento":8.0,"caldo":10.0,"prods":[{"n":"Fanafol Hierro","d":1.5},{"n":"Grap","d":1.5}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"1689220d","fecha":"2025-12-05","tipo":"Cebo","cliente":"Nalmer","est":"Dolores","lote":"Quinta","ha":54.35,"precio":12.0,"viento":10.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"5ba6efe3","fecha":"2025-12-05","tipo":"Cebo","cliente":"Nalmer","est":"Santa Teresa","lote":"","ha":76.8,"precio":12.0,"viento":5.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"1a8dbcdf","fecha":"2025-12-06","tipo":"Cebo","cliente":"Nalmer","est":"Aguila","lote":"","ha":99.0,"precio":12.0,"viento":5.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"a89a8f75","fecha":"2025-12-06","tipo":"Cebo","cliente":"Nalmer","est":"Las maulas","lote":"","ha":108.3,"precio":12.0,"viento":8.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"bf9169da","fecha":"2025-12-20","tipo":"Fertilizar","cliente":"Alvaro","est":"Bellaco","lote":"Maiz","ha":54.0,"precio":20.0,"viento":11.0,"caldo":null,"prods":[{"n":"Urea","d":50.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"a223c74a","fecha":"2025-12-22","tipo":"Fertilizar","cliente":"Alvaro","est":"Bellaco","lote":"Maiz","ha":35.6,"precio":20.0,"viento":3.0,"caldo":null,"prods":[{"n":"Urea","d":50.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"eab55e26","fecha":"2025-12-24","tipo":"Fumigar","cliente":"Dubach","est":"Negro","lote":"Soja","ha":21.0,"precio":null,"viento":9.0,"caldo":14.0,"prods":[{"n":"Glifo","d":3.0},{"n":"Grasidim Full","d":0.7}],"adys":[{"n":"Punch","d":0.1}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"9e96f9da","fecha":"2026-01-05","tipo":"Fumigar","cliente":"Cina Cina","est":"Villa asuncion","lote":"","ha":86.0,"precio":10.0,"viento":6.0,"caldo":10.0,"prods":[{"n":"Fanafol Hierro","d":1.5},{"n":"Grap","d":1.5}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"59c7b318","fecha":"2026-01-06","tipo":"Fumigar","cliente":"Jimmy Holstein","est":"","lote":"","ha":29.0,"precio":16.0,"viento":4.0,"caldo":15.0,"prods":[{"n":"Gramini Elite","d":1.3},{"n":"Glifo","d":3.6},{"n":"Dusilan","d":0.05},{"n":"Escolta","d":0.1}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"54f512aa","fecha":"2026-01-23","tipo":"Fumigar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Manchoneo","ha":21.0,"precio":10.0,"viento":6.0,"caldo":12.0,"prods":[{"n":"Fanafol Hierro","d":1.5},{"n":"Grap","d":1.5}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"1073ee75","fecha":"2026-01-26","tipo":"Fumigar","cliente":"Nalmer","est":"Dolores","lote":"Manchones","ha":33.0,"precio":11.0,"viento":15.0,"caldo":10.0,"prods":[{"n":"Fanafol Hierro","d":1.5}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"cf04ec11","fecha":"2026-01-27","tipo":"Fumigar","cliente":"Dubach","est":"Negro","lote":"","ha":24.0,"precio":null,"viento":4.0,"caldo":12.5,"prods":[{"n":"Vigia","d":0.4},{"n":"Triber Xtra","d":0.06}],"adys":[{"n":"Version","d":0.5}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"cb62a561","fecha":"2026-01-30","tipo":"Fumigar","cliente":"Martin Stirling","est":"La Porfia","lote":"","ha":21.4,"precio":15.0,"viento":11.0,"caldo":15.0,"prods":[{"n":"Glifo","d":4.0},{"n":"Amina","d":1.5},{"n":"Heat","d":0.05}],"adys":[{"n":"Ligier Grass","d":0.1}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"f3c80974","fecha":"2026-02-01","tipo":"Fumigar","cliente":"Manuel Pereira","est":"El Porvenir","lote":"","ha":99.0,"precio":14.0,"viento":9.0,"caldo":15.0,"prods":[{"n":"Acefato","d":1.0},{"n":"Agril","d":0.1}],"adys":[{"n":"A-Oil","d":0.15},{"n":"Grap Supergun","d":0.025}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"62f03f83","fecha":"2026-02-09","tipo":"Fumigar","cliente":"Martin Stirling","est":"La Porfia","lote":"","ha":21.4,"precio":15.0,"viento":11.0,"caldo":15.0,"prods":[{"n":"Paraquat","d":2.5},{"n":"Diuron","d":0.35}],"adys":[{"n":"Ligier Grass","d":0.1}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"fde94808","fecha":"2026-02-09","tipo":"Fumigar","cliente":"Jimmy Holstein","est":"","lote":"","ha":36.0,"precio":16.0,"viento":4.0,"caldo":14.0,"prods":[{"n":"Vigia","d":0.5},{"n":"KS5","d":1.5}],"adys":[{"n":"Aceite","d":0.15}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"6eb4efce","fecha":"2026-02-10","tipo":"Fertilizar","cliente":"Manuel Pereira","est":"El Porvenir","lote":"","ha":99.0,"precio":20.0,"viento":4.0,"caldo":null,"prods":[{"n":"Urea","d":100.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Jimmy"},{"id":"5eca8804","fecha":"2026-02-11","tipo":"Fertilizar","cliente":"Manuel Pereira","est":"Merinos","lote":"","ha":60.0,"precio":20.0,"viento":5.0,"caldo":null,"prods":[{"n":"Urea","d":100.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"5482b725","fecha":"2026-02-26","tipo":"Fumigar","cliente":"Tija","est":"San Manuel","lote":"","ha":20.0,"precio":15.0,"viento":5.0,"caldo":14.0,"prods":[{"n":"Wuxal","d":0.5}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"d0c7a9c8","fecha":"2026-02-26","tipo":"Relevamiento","cliente":"Tija","est":"San Manuel","lote":"","ha":121.9,"precio":1.0,"viento":null,"caldo":null,"prods":[{"n":"Imagen","d":1.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"ce5e2eab","fecha":"2026-02-27","tipo":"Fumigar","cliente":"Alvaro","est":"Carrique","lote":"9 + 11 + 24","ha":44.0,"precio":18.0,"viento":7.0,"caldo":20.0,"prods":[{"n":"Virantra","d":0.105}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"eb27b3b9","fecha":"2026-02-27","tipo":"Fumigar","cliente":"Alvaro","est":"Bosinski","lote":"18 contra Laco","ha":18.0,"precio":18.0,"viento":7.0,"caldo":20.0,"prods":[{"n":"Virantra","d":0.105}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"49ceaab3","fecha":"2026-02-28","tipo":"Fumigar","cliente":"Alvaro","est":"Bosinski","lote":"Bajo","ha":12.0,"precio":18.0,"viento":7.0,"caldo":20.0,"prods":[{"n":"Virantra","d":0.105}],"adys":[{"n":"Rizospray Extremo","d":0.8},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"94f57656","fecha":"2026-02-28","tipo":"Fumigar","cliente":"Alvaro","est":"Capincho","lote":"18","ha":18.0,"precio":18.0,"viento":10.0,"caldo":20.0,"prods":[{"n":"Virantra","d":0.105}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"1d308abd","fecha":"2026-02-28","tipo":"Fumigar","cliente":"Alvaro","est":"Sviridenko","lote":"Contra ruta","ha":14.0,"precio":18.0,"viento":12.0,"caldo":20.0,"prods":[{"n":"Virantra","d":0.105}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"a01920e2","fecha":"2026-02-28","tipo":"Fumigar","cliente":"Alvaro","est":"Bertinat","lote":"","ha":17.0,"precio":18.0,"viento":5.0,"caldo":20.0,"prods":[{"n":"Virantra","d":0.105}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"397d7739","fecha":"2026-03-01","tipo":"Fumigar","cliente":"Tija","est":"San Manuel","lote":"","ha":16.6,"precio":15.0,"viento":5.0,"caldo":10.0,"prods":[{"n":"Wuxal","d":0.5}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"dfc303e9","fecha":"2026-03-03","tipo":"Fumigar","cliente":"Alvaro","est":"Chito","lote":"","ha":1.5,"precio":18.0,"viento":7.0,"caldo":20.0,"prods":[{"n":"Virantra","d":0.105}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"ec65f51b","fecha":"2026-03-03","tipo":"Fumigar","cliente":"Alvaro","est":"Rostan","lote":"44","ha":29.0,"precio":18.0,"viento":3.0,"caldo":20.0,"prods":[{"n":"Virantra","d":0.105}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"87ae6108","fecha":"2026-03-04","tipo":"Fumigar","cliente":"Alvaro","est":"Rostan","lote":"44","ha":15.0,"precio":18.0,"viento":8.0,"caldo":20.0,"prods":[{"n":"Virantra","d":0.105}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"a78b05f1","fecha":"2026-03-04","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"","ha":10.0,"precio":12.0,"viento":10.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"099a0367","fecha":"2026-03-05","tipo":"Fumigar","cliente":"Dubach","est":"Casa","lote":"","ha":14.0,"precio":null,"viento":5.0,"caldo":20.0,"prods":[{"n":"Virantra","d":0.11},{"n":"Agril","d":0.05},{"n":"Detox","d":0.4}],"adys":[{"n":"Version","d":0.5}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"525def2b","fecha":"2026-03-10","tipo":"Fumigar","cliente":"Miguel Viera","est":"","lote":"","ha":4.8,"precio":16.0,"viento":8.0,"caldo":19.0,"prods":[{"n":"Lontrel","d":0.2},{"n":"Paradigm","d":25.0}],"adys":[{"n":"ProAsper","d":null}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"213d7a47","fecha":"2026-03-10","tipo":"Fumigar","cliente":"Dubach","est":"Negro","lote":"","ha":24.0,"precio":null,"viento":6.0,"caldo":12.5,"prods":[{"n":"Virantra","d":0.11},{"n":"Agril","d":0.05},{"n":"Detox","d":0.4}],"adys":[{"n":"Version","d":0.5}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"0368da63","fecha":"2026-03-11","tipo":"Fumigar","cliente":"Nalmer","est":"El Araza","lote":"Acacias","ha":20.0,"precio":9.0,"viento":11.0,"caldo":15.0,"prods":[{"n":"Tordon 101","d":5.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"0f2501bb","fecha":"2026-03-14","tipo":"Fumigar","cliente":"Miguel Viera","est":"","lote":"Rastrojo maíz, desmonte","ha":16.5,"precio":16.0,"viento":4.0,"caldo":18.0,"prods":[{"n":"Glifo","d":3.5},{"n":"Amina","d":1.0},{"n":"Sulfamonio","d":2.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"88bea9fb","fecha":"2026-03-14","tipo":"Fumigar","cliente":"Miguel Viera","est":"","lote":"Rastrojo moha","ha":4.5,"precio":16.0,"viento":4.0,"caldo":18.0,"prods":[{"n":"Glifo","d":3.5},{"n":"Starane","d":0.45},{"n":"Sulfamonio","d":2.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"eb603927","fecha":"2026-03-17","tipo":"Fumigar","cliente":"Cina Cina","est":"Villa asuncion","lote":"VACC Pvt 4","ha":60.0,"precio":9.0,"viento":8.0,"caldo":8.0,"prods":[{"n":"Quintal xtra","d":0.1}],"adys":[{"n":"Rizospray Extremo","d":0.2}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"320fd0b0","fecha":"2026-03-18","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Bajos","ha":30.0,"precio":12.0,"viento":15.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"97471829","fecha":"2026-03-18","tipo":"Fumigar","cliente":"Martin Stirling","est":"La Porfia","lote":"","ha":21.4,"precio":15.0,"viento":3.0,"caldo":12.0,"prods":[{"n":"Glifo","d":3.5},{"n":"Paraquat","d":1.0}],"adys":[{"n":"Ligier Grass","d":0.1}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"56c45135","fecha":"2026-03-19","tipo":"Fumigar","cliente":"Miguel Viera","est":"","lote":"","ha":21.2,"precio":16.0,"viento":9.0,"caldo":13.8,"prods":[{"n":"Glifo","d":3.5},{"n":"Amina","d":1.0},{"n":"Sulfamonio","d":2.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"92dc8b38","fecha":"2026-03-20","tipo":"Sembrar","cliente":"Ingral","est":"","lote":"","ha":18.7,"precio":11.0,"viento":4.0,"caldo":null,"prods":[{"n":"Mezcla Lotus","d":6.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"0597d9ca","fecha":"2026-03-25","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Paj 2","ha":20.0,"precio":12.0,"viento":5.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"2ee983d7","fecha":"2026-03-25","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Pajonales largo","ha":36.0,"precio":12.0,"viento":5.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"84352027","fecha":"2026-03-25","tipo":"Fumigar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Paj 2","ha":20.0,"precio":9.0,"viento":4.0,"caldo":10.0,"prods":[{"n":"Glifo","d":2.5}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"56de69b3","fecha":"2026-03-26","tipo":"Fumigar","cliente":"Alvaro","est":"Sviridenko","lote":"","ha":14.0,"precio":18.0,"viento":8.0,"caldo":20.0,"prods":[{"n":"Engeo","d":0.19},{"n":"Scrum","d":0.19}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"75a5783e","fecha":"2026-03-26","tipo":"Fumigar","cliente":"Alvaro","est":"Rostan","lote":"2 vueltas cabecera","ha":2.6,"precio":18.0,"viento":11.0,"caldo":20.0,"prods":[{"n":"Engeo","d":0.19},{"n":"Scrum","d":0.19}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"2b14af38","fecha":"2026-03-26","tipo":"Fumigar","cliente":"Alvaro","est":"Bertinat","lote":"2 vueltas cabecera","ha":1.6,"precio":18.0,"viento":15.0,"caldo":20.0,"prods":[{"n":"Engeo","d":0.19},{"n":"Scrum","d":0.19}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"411c4630","fecha":"2026-03-26","tipo":"Fumigar","cliente":"Alvaro","est":"Capincho","lote":"18.0","ha":8.0,"precio":18.0,"viento":9.0,"caldo":20.0,"prods":[{"n":"Engeo","d":0.19},{"n":"Scrum","d":0.19}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"ae69f238","fecha":"2026-03-26","tipo":"Fumigar","cliente":"Alvaro","est":"Capincho","lote":"18.0","ha":10.0,"precio":18.0,"viento":8.0,"caldo":20.0,"prods":[{"n":"Engeo","d":0.19}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"e7c84770","fecha":"2026-03-26","tipo":"Fumigar","cliente":"Alvaro","est":"Carrique","lote":"9","ha":9.0,"precio":18.0,"viento":5.0,"caldo":20.0,"prods":[{"n":"Engeo","d":0.19}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"9b7f4438","fecha":"2026-03-26","tipo":"Fumigar","cliente":"Alvaro","est":"Carrique","lote":"2 vueltas cabecera y contra Andres","ha":5.7,"precio":18.0,"viento":3.0,"caldo":20.0,"prods":[{"n":"Engeo","d":0.19}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"b284a057","fecha":"2026-03-27","tipo":"Sembrar","cliente":"Nalmer","est":"El Araza","lote":"1","ha":118.0,"precio":12.0,"viento":6.0,"caldo":null,"prods":[{"n":"Vicia","d":35.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"440da759","fecha":"2026-03-27","tipo":"Sembrar","cliente":"Nalmer","est":"El Araza","lote":"","ha":28.0,"precio":12.0,"viento":5.0,"caldo":null,"prods":[{"n":"Vicia","d":35.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"f146924d","fecha":"2026-03-28","tipo":"Sembrar","cliente":"Nalmer","est":"El Araza","lote":"","ha":87.0,"precio":12.0,"viento":9.0,"caldo":null,"prods":[{"n":"Vicia","d":35.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"8c675243","fecha":"2026-03-28","tipo":"Sembrar","cliente":"Nalmer","est":"La Martita","lote":"Entrada","ha":21.0,"precio":12.0,"viento":7.0,"caldo":null,"prods":[{"n":"Vicia","d":35.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"422c4371","fecha":"2026-03-30","tipo":"Sembrar","cliente":"Nalmer","est":"Valle de Soba","lote":"","ha":147.1,"precio":12.0,"viento":4.0,"caldo":null,"prods":[{"n":"Vicia","d":40.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"5231a6be","fecha":"2026-03-31","tipo":"Sembrar","cliente":"Alvaro","est":"Bosinski","lote":"Maiz","ha":21.0,"precio":22.0,"viento":12.0,"caldo":null,"prods":[{"n":"Avena","d":70.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Elias"},{"id":"0c1b3c33","fecha":"2026-03-31","tipo":"Sembrar","cliente":"Alvaro","est":"Erwin","lote":"ER29","ha":29.0,"precio":22.0,"viento":8.0,"caldo":null,"prods":[{"n":"Avena","d":70.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Elias"},{"id":"e41761ed","fecha":"2026-03-31","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"Pivot 2 y 3","ha":50.0,"precio":12.0,"viento":2.0,"caldo":null,"prods":[{"n":"Vicia","d":40.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"0304d9f0","fecha":"2026-04-02","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"","ha":32.0,"precio":12.0,"viento":8.0,"caldo":null,"prods":[{"n":"Vicia","d":40.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"e35ce506","fecha":"2026-04-02","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"","ha":100.0,"precio":12.0,"viento":5.0,"caldo":null,"prods":[{"n":"Vicia","d":12.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"93742ac0","fecha":"2026-04-03","tipo":"Sembrar","cliente":"Nalmer","est":"Santa Teresa","lote":"","ha":114.0,"precio":12.0,"viento":5.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"dfa6c2f2","fecha":"2026-04-09","tipo":"Sembrar","cliente":"Norbert Hein","est":"","lote":"16,5 y 3","ha":20.0,"precio":16.0,"viento":7.0,"caldo":null,"prods":[{"n":"Vicia","d":36.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Elias"},{"id":"95ddd4bb","fecha":"2026-04-09","tipo":"Fumigar","cliente":"Alvaro","est":"Carrique","lote":"Resto","ha":30.0,"precio":18.0,"viento":9.0,"caldo":20.0,"prods":[{"n":"Engeo","d":0.19}],"adys":[{"n":"Rizospray Extremo","d":0.08}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"331a671f","fecha":"2026-04-10","tipo":"Fumigar","cliente":"Jimmy Holstein","est":"","lote":"","ha":36.0,"precio":16.0,"viento":4.0,"caldo":null,"prods":[{"n":"Dusilan","d":0.5}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"d5963921","fecha":"2026-04-10","tipo":"Fumigar","cliente":"Miguel Viera","est":"Las Mulas","lote":"Alfalfa","ha":9.3,"precio":16.0,"viento":3.0,"caldo":17.0,"prods":[{"n":"BioPlus","d":2.0},{"n":"Galaxyfop","d":null},{"n":"Grap Zinc","d":null}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"56a34312","fecha":"2026-04-10","tipo":"Fumigar","cliente":"Alvaro","est":"Rostan","lote":"44","ha":12.0,"precio":18.0,"viento":4.0,"caldo":20.0,"prods":[{"n":"Engeo","d":0.19}],"adys":[{"n":"Rizospray Extremo","d":0.08}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"601bc72a","fecha":"2026-04-10","tipo":"Fumigar","cliente":"Miguel Viera","est":"Las Mulas","lote":"Rastrojo Sorgo","ha":14.0,"precio":16.0,"viento":4.0,"caldo":15.0,"prods":[{"n":"Glifo","d":4.0},{"n":"Amina","d":1.5},{"n":"Sulfamonio","d":2.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"d3321922","fecha":"2026-04-11","tipo":"Fumigar","cliente":"Alvaro","est":"Rostan","lote":"","ha":32.0,"precio":18.0,"viento":9.0,"caldo":20.0,"prods":[{"n":"Engeo","d":0.19}],"adys":[{"n":"Rizospray Extremo","d":0.08}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"48efa294","fecha":"2026-04-12","tipo":"Sembrar","cliente":"Nalmer","est":"Los tientos","lote":"","ha":108.0,"precio":12.0,"viento":4.0,"caldo":null,"prods":[{"n":"Vicia","d":32.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"0083ee3d","fecha":"2026-04-13","tipo":"Sembrar","cliente":"Nalmer","est":"Ruta 96","lote":"","ha":116.0,"precio":12.0,"viento":5.0,"caldo":null,"prods":[{"n":"Vicia","d":33.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"b2f1bf07","fecha":"2026-04-13","tipo":"Sembrar","cliente":"Nalmer","est":"Santa Teresa","lote":"2","ha":23.0,"precio":12.0,"viento":12.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"f4ae89e4","fecha":"2026-04-14","tipo":"Sembrar","cliente":"Nalmer","est":"El Araza","lote":"3","ha":84.0,"precio":12.0,"viento":8.0,"caldo":null,"prods":[{"n":"Trébol persa","d":26.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"8b0522b6","fecha":"2026-04-14","tipo":"Sembrar","cliente":"Nalmer","est":"Valle de Soba","lote":"48 + 15","ha":63.0,"precio":12.0,"viento":5.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"667c7a63","fecha":"2026-04-17","tipo":"Sembrar","cliente":"Nalmer","est":"Valle de Soba","lote":"Casa Richard y cantera","ha":56.0,"precio":12.0,"viento":6.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"953346ea","fecha":"2026-04-17","tipo":"Sembrar","cliente":"Nalmer","est":"Cabure","lote":"8 izq","ha":43.0,"precio":12.0,"viento":8.0,"caldo":null,"prods":[{"n":"Trébol persa","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"0df333f7","fecha":"2026-04-17","tipo":"Sembrar","cliente":"Nalmer","est":"Cabure","lote":"2","ha":46.3,"precio":12.0,"viento":5.0,"caldo":null,"prods":[{"n":"Trébol persa","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"e3c579ae","fecha":"2026-04-18","tipo":"Sembrar","cliente":"Nalmer","est":"Cabure","lote":"8","ha":74.0,"precio":12.0,"viento":7.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"e180707b","fecha":"2026-04-19","tipo":"Sembrar","cliente":"Nalmer","est":"Cabure","lote":"2","ha":93.3,"precio":12.0,"viento":8.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"6a182bd0","fecha":"2026-04-19","tipo":"Fumigar","cliente":"Marvin","est":"Los Ceibos","lote":"Sorgo","ha":36.0,"precio":12.0,"viento":3.0,"caldo":10.0,"prods":[{"n":"Glifo","d":2.2}],"adys":[{"n":"Punch","d":0.1}],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"f70c45fd","fecha":"2026-04-21","tipo":"Sembrar","cliente":"Nalmer","est":"Rolon","lote":"4","ha":110.0,"precio":12.0,"viento":7.0,"caldo":null,"prods":[{"n":"Trébol persa","d":31.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"7290a907","fecha":"2026-04-22","tipo":"Sembrar","cliente":"Nalmer","est":"Campanilla","lote":"15","ha":136.3,"precio":12.0,"viento":8.0,"caldo":null,"prods":[{"n":"Vicia","d":27.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"947a7af4","fecha":"2026-04-23","tipo":"Cebo","cliente":"Nalmer","est":"Campanilla","lote":"12, 21, 22, 23, 16","ha":227.7,"precio":10.0,"viento":8.0,"caldo":null,"prods":[{"n":"Matabibo","d":4.5}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"bd95a4ed","fecha":"2026-04-24","tipo":"Fumigar","cliente":"Miguel Viera","est":"Las Mulas","lote":"4 lotes","ha":39.7,"precio":15.0,"viento":4.0,"caldo":13.0,"prods":[{"n":"Glifo","d":2.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"218f84db","fecha":"2026-04-24","tipo":"Sembrar","cliente":"Nalmer","est":"Valle de Soba","lote":"Bajo","ha":6.7,"precio":12.0,"viento":6.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"0de3f141","fecha":"2026-04-24","tipo":"Cebo","cliente":"Nalmer","est":"Cabure","lote":"7","ha":112.8,"precio":10.0,"viento":3.0,"caldo":null,"prods":[{"n":"Matabibo","d":4.0},{"n":"Hormiga","d":2.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"15cd1a89","fecha":"2026-04-25","tipo":"Cebo","cliente":"Nalmer","est":"Santa Teresa","lote":"","ha":41.0,"precio":10.0,"viento":4.0,"caldo":null,"prods":[{"n":"Hormiga","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"9c4be341","fecha":"2026-04-25","tipo":"Sembrar","cliente":"Nalmer","est":"Aguila","lote":"","ha":99.0,"precio":12.0,"viento":4.0,"caldo":null,"prods":[{"n":"Vicia","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"3c3586a6","fecha":"2026-04-25","tipo":"Sembrar","cliente":"Nalmer","est":"Ruta 96","lote":"Quinta","ha":54.0,"precio":12.0,"viento":4.0,"caldo":null,"prods":[{"n":"Vicia","d":12.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"225c321b","fecha":"2026-04-27","tipo":"Cebo","cliente":"Nalmer","est":"Cabure","lote":"6","ha":131.0,"precio":10.0,"viento":9.0,"caldo":null,"prods":[{"n":"Matabibo","d":4.0},{"n":"Hormiga","d":2.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"5a2476ca","fecha":"2026-04-28","tipo":"Sembrar","cliente":"Marvin","est":"La Cantera","lote":"","ha":77.0,"precio":12.0,"viento":6.0,"caldo":null,"prods":[{"n":"Raigras","d":15.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"39d0273c","fecha":"2026-04-28","tipo":"Sembrar","cliente":"Nalmer","est":"Cabure","lote":"5","ha":81.3,"precio":12.0,"viento":10.0,"caldo":null,"prods":[{"n":"Raigras","d":25.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"0cd0f781","fecha":"2026-04-29","tipo":"Sembrar","cliente":"Nalmer","est":"El Araza","lote":"7-8","ha":108.0,"precio":12.0,"viento":14.0,"caldo":null,"prods":[{"n":"Raigras","d":25.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":"Elias"},{"id":"05aa7981","fecha":"2026-04-30","tipo":"Sembrar","cliente":"Cina Cina","est":"Villa asuncion","lote":"","ha":5.0,"precio":12.0,"viento":5.0,"caldo":null,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"183ada7e","fecha":"2026-04-30","tipo":"Cebo","cliente":"Cina Cina","est":"Villa asuncion","lote":"Entrada vieja","ha":42.0,"precio":10.0,"viento":7.0,"caldo":null,"prods":[{"n":"Bolta","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"3bebd9d9","fecha":"2026-05-01","tipo":"Cebo","cliente":"Nalmer","est":"El Araza","lote":"","ha":158.0,"precio":10.0,"viento":5.0,"caldo":null,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"35eab551","fecha":"2026-05-01","tipo":"Cebo","cliente":"Nalmer","est":"El Araza","lote":"","ha":56.0,"precio":10.0,"viento":4.0,"caldo":null,"prods":[{"n":"Matabibo","d":10.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"","ay":""},{"id":"bacc0b56","fecha":"2026-05-06","tipo":"Sembrar","cliente":"Ralph Wiens","est":"","lote":"","ha":15.0,"precio":12.0,"viento":3.0,"caldo":null,"prods":[{"n":"Trébol persa","d":4.0}],"adys":[],"horas":null,"fact":true,"cobr":true,"op":"Tomas","ay":""},{"id":"384cc258","fecha":"2026-05-13","tipo":"Sembrar","cliente":"Alfredo Holstein","est":"Casa","lote":"","ha":39.0,"precio":12.0,"viento":8.0,"caldo":null,"prods":[{"n":"Lotus Rincon","d":5.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"a0d55059","fecha":"2026-05-16","tipo":"Cebo","cliente":"Alvaro","est":"San Ramon","lote":"","ha":23.0,"precio":12.0,"viento":4.0,"caldo":null,"prods":[{"n":"Lampo","d":3.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"Tomas","ay":""},{"id":"c258de81","fecha":"2026-05-16","tipo":"Cebo","cliente":"Alvaro","est":"Sviridenko","lote":"","ha":13.0,"precio":12.0,"viento":5.0,"caldo":null,"prods":[{"n":"Lampo","d":3.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"Tomas","ay":""},{"id":"428ba778","fecha":"2026-05-16","tipo":"Cebo","cliente":"Alvaro","est":"Rostan","lote":"","ha":36.0,"precio":12.0,"viento":2.0,"caldo":null,"prods":[{"n":"Lampo","d":3.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"Tomas","ay":""},{"id":"f08daa38","fecha":"2026-06-04","tipo":"Fertilizar","cliente":"Rodrigo Laluz","est":"Don Jacinto","lote":"","ha":40.0,"precio":18.0,"viento":4.0,"caldo":null,"prods":[{"n":"Entec 26","d":100.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Elias"},{"id":"f6ac5837","fecha":"2026-06-10","tipo":"Sembrar","cliente":"Rodrigo Laluz","est":"Don Jacinto","lote":"","ha":4.0,"precio":12.0,"viento":null,"caldo":null,"prods":[{"n":"Colza","d":6.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"8cdd3ca9","fecha":"2026-06-10","tipo":"Fumigar","cliente":"Rodrigo Laluz","est":"Don Jacinto","lote":"","ha":40.0,"precio":10.0,"viento":4.0,"caldo":14.0,"prods":[{"n":"Arsenal","d":0.37},{"n":"Bioplus","d":2.0}],"adys":[{"n":"Ligier Grass","d":0.1}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""},{"id":"df08fe1d","fecha":"2026-06-17","tipo":"Fertilizar","cliente":"Dubach","est":"Negro","lote":"","ha":37.0,"precio":null,"viento":10.0,"caldo":null,"prods":[{"n":"25-33","d":140.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Elias"},{"id":"3cc449e8","fecha":"2026-06-17","tipo":"Fertilizar","cliente":"Dubach","est":"Casa","lote":"","ha":5.0,"precio":null,"viento":3.0,"caldo":null,"prods":[{"n":"25-33","d":140.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Elias"},{"id":"6755dcf7","fecha":"2026-06-18","tipo":"Fertilizar","cliente":"Dubach","est":"Grishka","lote":"","ha":35.0,"precio":null,"viento":5.0,"caldo":null,"prods":[{"n":"0-34","d":142.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Elias"},{"id":"1079cd91","fecha":"2026-06-20","tipo":"Fertilizar","cliente":"Dubach","est":"Grishka","lote":"","ha":35.0,"precio":null,"viento":3.0,"caldo":null,"prods":[{"n":"Urea","d":85.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Elias"},{"id":"cc914a16","fecha":"2026-06-23","tipo":"Fertilizar","cliente":"Dubach","est":"Casa","lote":"","ha":10.0,"precio":null,"viento":2.0,"caldo":null,"prods":[{"n":"0-34","d":100.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Texeira"},{"id":"12244459","fecha":"2026-06-23","tipo":"Fertilizar","cliente":"Dubach","est":"Casa","lote":"","ha":10.0,"precio":null,"viento":4.0,"caldo":null,"prods":[{"n":"Urea","d":100.0}],"adys":[],"horas":null,"fact":false,"cobr":true,"op":"","ay":"Texeira"},{"id":"54d73a58","fecha":"2026-07-07","tipo":"Fumigar","cliente":"Rodrigo Laluz","est":"Don Jacinto","lote":"","ha":null,"precio":10.0,"viento":10.0,"caldo":14.0,"prods":[{"n":"Unico","d":0.6},{"n":"Bioplus","d":2.0}],"adys":[{"n":"Rizospray Extremo","d":0.25}],"horas":null,"fact":false,"cobr":false,"op":"","ay":""},{"id":"551cac27","fecha":"2026-07-10","tipo":"Fumigar","cliente":"Dubach","est":"Negro","lote":"","ha":37.0,"precio":null,"viento":null,"caldo":13.0,"prods":[{"n":"MCPA","d":1.0},{"n":"Paradigm","d":25.0}],"adys":[{"n":"Potent","d":0.1}],"horas":null,"fact":false,"cobr":true,"op":"","ay":""}],"jerarquia":{"Dubach":{"Grishka":{"—":35.0,"Refugio":3.0},"Casa":{"—":10.0,"RB":9.5},"Negro":{"Sorgo":24.0,"—":37.0,"Soja":21.0}},"Cina Cina":{"Villa asuncion":{"Paj1":31.6,"Paj2":27.4,"Paj Largo":43.0,"Paj 1 y 2":55.0,"3 lotes con árboles":12.0,"Pivot 1":26.0,"Árboles":10.0,"Entrada":25.6,"2 lotes contra maletas":117.0,"—":5.0,"Pajonales":39.5,"Cerro Payun":39.2,"Manchoneo":21.0,"VACC Pvt 4":60.0,"Bajos":30.0,"Paj 2":20.0,"Pajonales largo":36.0,"Pivot 2 y 3":50.0,"Entrada vieja":42.0},"Abrojal":{"—":35.0}},"Nalmer":{"El Araza":{"Pivot 6":58.0,"—":56.0,"Pivot 2a":96.0,"11 y 3b":78.0,"Pvt6 p1":56.0,"03a":120.0,"03b":38.0,"Acacias":20.0,"1":118.0,"3":84.0,"7-8":108.0},"La Martita":{"Bajo maiz":54.0,"—":55.0,"8 y 2":61.8,"Entrada":21.0},"Santa Teresa":{"5":30.0,"—":41.0,"4":43.42,"2":23.0},"Dolores":{"—":210.5,"Ruta 96":25.0,"Sosa":116.0,"R96 calcáreo":20.7,"Quinta":54.35,"Manchones":33.0},"Los tientos":{"—":108.0},"Las maulas":{"—":108.3,"1 - 2":101.0},"Aguila":{"—":99.0},"El Aguila":{"4 - 5 - 6":81.0},"Ruta 96":{"64":77.9,"Ruta 96":40.5,"—":116.0,"Quinta":54.0},"Cabure":{"1":108.0,"4":22.7,"8 izq":43.0,"2":93.3,"8":74.0,"7":112.8,"6":131.0,"5":81.3},"La Esmeralda":{"Biznaga":97.0},"Valle de Soba":{"2":69.0,"—":147.1,"48 + 15":63.0,"Casa Richard y cantera":56.0,"Bajo":6.7},"Doña Juana":{"1":63.5},"Campanilla":{"46":77.4,"15":136.3,"12, 21, 22, 23, 16":227.7},"Rolon":{"2":44.0,"4":110.0}},"Frank Klaassen":{"Tambo":{"—":9.0}},"Alvaro":{"Chito":{"—":1.5},"Erwin":{"ER24":24.0,"29":29.0,"ER29":29.0},"San Ramon":{"SR32":16.0,"14 + 16":30.0,"—":23.0},"Rostan":{"—":36.0,"44":12.0,"2 vueltas cabecera":2.6},"Capincho":{"—":17.5,"18":18.0,"18.0":10.0},"Carrique":{"—":44.0,"9 + 11 + 24":44.0,"9":9.0,"2 vueltas cabecera y contra Andres":5.7,"Resto":30.0},"Bosinski":{"Entrada refugio":3.0,"18 + 12":30.0,"18 contra Laco":18.0,"Bajo":12.0,"Maiz":21.0},"Bellaco":{"—":17.0,"Maiz":35.6},"Sviridenko":{"Contra ruta":14.0,"—":13.0},"Bertinat":{"—":17.0,"2 vueltas cabecera":1.6}},"Jimmy Holstein":{"San Javier":{"—":29.0},"—":{"—":36.0}},"Negro":{"—":{"—":12.0}},"Henry":{"Casa":{"—":38.0}},"Burkhard":{"Tambo":{"—":7.5}},"Tija":{"Molina":{"Fondo":21.0,"Casa":18.2},"Novak":{"Fondo":23.5,"Frente":23.5},"Galpon":{"Manchoneo":10.4},"San Manuel":{"—":16.6}},"Davila":{"San Rafael":{"—":11.5}},"Miguel Viera":{"—":{"—":21.2,"Rastrojo maíz, desmonte":16.5,"Rastrojo moha":4.5},"Las Mulas":{"Alfalfa":9.3,"Rastrojo Sorgo":14.0,"4 lotes":39.7}},"Erwin Regehr":{"Colonia":{"Medio":11.9}},"Garcia":{"Puerto viejo":{"—":20.0}},"Marvin":{"Espinillo":{"Carinata":127.0},"Los Ceibos":{"Sorgo":36.0},"La Cantera":{"—":77.0}},"Ralph Wiens":{"Cooperativa":{"—":15.8},"—":{"—":15.0}},"Martin Stirling":{"La Porfia":{"—":21.4}},"Manuel Pereira":{"El Porvenir":{"—":99.0},"Merinos":{"—":60.0}},"Ingral":{"—":{"—":18.7}},"Norbert Hein":{"—":{"16,5 y 3":20.0}},"Alfredo Holstein":{"Casa":{"—":39.0}},"Rodrigo Laluz":{"Don Jacinto":{"—":40.0}}},"precios":{"Cina Cina|Fumigar":9.0,"Nalmer|Fumigar":9.0,"Frank Klaassen|Fumigar":18.0,"Alvaro|Fumigar":18.0,"Cina Cina|Sembrar":12.0,"Jimmy Holstein|Fumigar":16.0,"Alvaro|Sembrar":22.0,"Nalmer|Sembrar":12.0,"Nalmer|Cebo":10.0,"Cina Cina|Cebo":10.0,"Henry|Fumigar":16.0,"Burkhard|Fumigar":18.0,"Tija|Fumigar":15.0,"Davila|Fumigar":16.0,"Miguel Viera|Fumigar":15.0,"Erwin Regehr|Fumigar":18.0,"Miguel Viera|Fertilizar":22.0,"Garcia|Fumigar":15.0,"Marvin|Fumigar":12.0,"Alvaro|Fertilizar":20.0,"Garcia|Fertilizar":25.0,"Ralph Wiens|Fumigar":18.0,"Martin Stirling|Fumigar":15.0,"Manuel Pereira|Fumigar":14.0,"Manuel Pereira|Fertilizar":20.0,"Tija|Relevamiento":1.0,"Ingral|Sembrar":11.0,"Norbert Hein|Sembrar":16.0,"Marvin|Sembrar":12.0,"Ralph Wiens|Sembrar":12.0,"Alfredo Holstein|Sembrar":12.0,"Alvaro|Cebo":12.0,"Rodrigo Laluz|Fertilizar":18.0,"Rodrigo Laluz|Sembrar":12.0,"Rodrigo Laluz|Fumigar":10.0},"caldoDef":{"Fumigar":13.0},"recetas":[{"nombre":"Matabibo 3","tipo":"Cebo","usos":23,"prods":[{"n":"Matabibo","d":3.0}],"adys":[],"caldo":null},{"nombre":"Raigras 30","tipo":"Sembrar","usos":22,"prods":[{"n":"Raigras","d":30.0}],"adys":[],"caldo":null},{"nombre":"Virantra + Rizospray Extremo + Potent","tipo":"Fumigar","usos":8,"prods":[{"n":"Virantra","d":0.105}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"caldo":20.0},{"nombre":"Vicia 40","tipo":"Sembrar","usos":6,"prods":[{"n":"Vicia","d":40.0}],"adys":[],"caldo":null},{"nombre":"Urea 100","tipo":"Fertilizar","usos":6,"prods":[{"n":"Urea","d":100.0}],"adys":[],"caldo":null},{"nombre":"Trébol persa 30","tipo":"Sembrar","usos":4,"prods":[{"n":"Trébol persa","d":30.0}],"adys":[],"caldo":null},{"nombre":"Canvas + Merit plus + Corrector +1","tipo":"Fumigar","usos":4,"prods":[{"n":"Canvas","d":1.1},{"n":"Merit plus","d":null}],"adys":[{"n":"Corrector","d":0.1},{"n":"Agral 90","d":0.05}],"caldo":10.0},{"nombre":"Engeo + Scrum + Rizospray Extremo +1","tipo":"Fumigar","usos":4,"prods":[{"n":"Engeo","d":0.19},{"n":"Scrum","d":0.19}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"caldo":20.0},{"nombre":"Vicia 35","tipo":"Sembrar","usos":4,"prods":[{"n":"Vicia","d":35.0}],"adys":[],"caldo":null},{"nombre":"Glifo 2","tipo":"Fumigar","usos":3,"prods":[{"n":"Glifo","d":2.0}],"adys":[],"caldo":13.0},{"nombre":"Raigras 25","tipo":"Sembrar","usos":3,"prods":[{"n":"Raigras","d":25.0}],"adys":[],"caldo":null},{"nombre":"Glifo + Saflunex + Speed weed maxion rojo","tipo":"Fumigar","usos":3,"prods":[{"n":"Glifo","d":3.5},{"n":"Saflunex","d":0.07}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"caldo":8.0},{"nombre":"Fanafol Hierro + Grap","tipo":"Fumigar","usos":3,"prods":[{"n":"Fanafol Hierro","d":1.5},{"n":"Grap","d":1.5}],"adys":[],"caldo":12.0},{"nombre":"Engeo + Rizospray Extremo + Potent","tipo":"Fumigar","usos":3,"prods":[{"n":"Engeo","d":0.19}],"adys":[{"n":"Rizospray Extremo","d":0.08},{"n":"Potent","d":0.01}],"caldo":20.0},{"nombre":"Engeo + Rizospray Extremo","tipo":"Fumigar","usos":3,"prods":[{"n":"Engeo","d":0.19}],"adys":[{"n":"Rizospray Extremo","d":0.08}],"caldo":20.0},{"nombre":"Lampo 3","tipo":"Cebo","usos":3,"prods":[{"n":"Lampo","d":3.0}],"adys":[],"caldo":null},{"nombre":"Criptón XPro + Virantra + Rizospray Extremo","tipo":"Fumigar","usos":2,"prods":[{"n":"Criptón XPro","d":0.45},{"n":"Virantra","d":0.05}],"adys":[{"n":"Rizospray Extremo","d":0.06}],"caldo":15.0},{"nombre":"Criptón XPro 0.45 + Virantra 0.05 + Grasidim 0.7 + Rizospray Extremo 0.06","tipo":"Fumigar","usos":2,"prods":[{"n":"Criptón XPro","d":0.45},{"n":"Virantra","d":0.05},{"n":"Grasidim","d":0.7}],"adys":[{"n":"Rizospray Extremo","d":0.06}],"caldo":15.0},{"nombre":"Criptón XPro 0.45 + Virantra 0.11 + Grasidim 0.75 + Rizospray Extremo 0.06","tipo":"Fumigar","usos":2,"prods":[{"n":"Criptón XPro","d":0.45},{"n":"Virantra","d":0.11},{"n":"Grasidim","d":0.75}],"adys":[{"n":"Rizospray Extremo","d":0.06}],"caldo":15.0},{"nombre":"Avena 60","tipo":"Sembrar","usos":2,"prods":[{"n":"Avena","d":60.0}],"adys":[],"caldo":null},{"nombre":"Tordon 101 5","tipo":"Fumigar","usos":2,"prods":[{"n":"Tordon 101","d":5.0}],"adys":[],"caldo":15.0},{"nombre":"Matabibo 2.5","tipo":"Cebo","usos":2,"prods":[{"n":"Matabibo","d":2.5}],"adys":[],"caldo":null},{"nombre":"Glifo + Speed weed maxion rojo","tipo":"Fumigar","usos":2,"prods":[{"n":"Glifo","d":2.5}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"caldo":10.0},{"nombre":"Glifo + Heat + Speed weed maxion rojo","tipo":"Fumigar","usos":2,"prods":[{"n":"Glifo","d":2.5},{"n":"Heat","d":0.05}],"adys":[{"n":"Speed weed maxion rojo","d":0.05}],"caldo":8.0},{"nombre":"Urea 50","tipo":"Fertilizar","usos":2,"prods":[{"n":"Urea","d":50.0}],"adys":[],"caldo":null},{"nombre":"Wuxal 0.5","tipo":"Fumigar","usos":2,"prods":[{"n":"Wuxal","d":0.5}],"adys":[],"caldo":10.0},{"nombre":"Virantra + Agril + Detox +1","tipo":"Fumigar","usos":2,"prods":[{"n":"Virantra","d":0.11},{"n":"Agril","d":0.05},{"n":"Detox","d":0.4}],"adys":[{"n":"Version","d":0.5}],"caldo":12.5},{"nombre":"Glifo + Amina + Sulfamonio","tipo":"Fumigar","usos":2,"prods":[{"n":"Glifo","d":3.5},{"n":"Amina","d":1.0},{"n":"Sulfamonio","d":2.0}],"adys":[],"caldo":13.8},{"nombre":"Avena 70","tipo":"Sembrar","usos":2,"prods":[{"n":"Avena","d":70.0}],"adys":[],"caldo":null},{"nombre":"Vicia 12","tipo":"Sembrar","usos":2,"prods":[{"n":"Vicia","d":12.0}],"adys":[],"caldo":null},{"nombre":"Matabibo + Hormiga","tipo":"Cebo","usos":2,"prods":[{"n":"Matabibo","d":4.0},{"n":"Hormiga","d":2.0}],"adys":[],"caldo":null},{"nombre":"25-33 140","tipo":"Fertilizar","usos":2,"prods":[{"n":"25-33","d":140.0}],"adys":[],"caldo":null}],"productos":["0-34","25-33","Abamet","Acefato","Acelon pro","Acepan Pro","Acuron","Adengo","Agril","Alsystin","Amina","Amina Enlist","Arsenal","Avena","Axial","BioPlus","Bioplus","Bolta","Boydal","Canvas","Colza","Coron 10","Criptón XPro","Detox","Diquat","Diuron","Dual Gold","Dusilan","Engeo","Entec 26","Escolta","Expedition","Fanafol Hierro","Fixfilm","Foliar Blend","Galaxyfop","Glifo","Gliserb","Glufosinato","Gramini Elite","Grap","Grap Zinc","Grasidim","Grasidim Full","Halaxy","Heat","Hormiga","Hussar Plus","Imagen","KCl","KS5","Karate","Kornkali","Lampo","Lexus","Lontrel","Lotus Rincon","MCPA","Matabibo","Merit plus","Mezcla Lotus","Nexxo","Pampa Max","Panzer","Paradigm","Paraquat","Preside","Quintal xtra","Raigras","Rainvel","Saflunex","Scrum","Skystar","Spereel","Starane","Sulfamonio","Sungain","Tordon","Tordon 101","Triber Xtra","Triple pack","Trébol persa","Unico","Urea","Venceweed","Verdict Max","Vicia","Vigia","Virantra","Wuxal"],"adyuvantes":["A-Oil","Aceite","Agral 90","Corrector","Grap Supergun","Ligier Grass","MSO","Potent","ProAsper","Punch","Rizospray Extremo","Silwet","Speed weed maxion rojo","Uptake","Version"],"tipos":["Cebo","Fertilizar","Fumigar","Relevamiento","Sembrar"],"personas":["Elias","Jimmy","Renzo","Santi","Texeira","Tomas"]};
-
 var K = 'droneApp_v1';
 var S = null;
+
+// distancias por establecimiento (km de ida), cargadas una vez desde el Sheet.
+// De acá en más, la app es la fuente: lo que edites acá se manda solo a la planilla.
+var DIST_SEED = {
+  'Alfredo Holstein|Casa':15, 'Alvaro|Bellaco':15, 'Alvaro|Bertinat':9, 'Alvaro|Bosinski':15,
+  'Alvaro|Capincho':5, 'Alvaro|Carrique':3, 'Alvaro|Chito':9, 'Alvaro|Erwin':7, 'Alvaro|Fondo':8,
+  'Alvaro|Rostan':8, 'Alvaro|San Ramon':6, 'Alvaro|Sviridenko':7, 'Burkhard|Tambo':8,
+  'Cina Cina|Abrojal':45, 'Cina Cina|El Talisman':130, 'Cina Cina|Villa asuncion':45,
+  'Davila|San Rafael':6, 'Dubach|Casa':0, 'Dubach|Grishka':15, 'Dubach|Negro':5,
+  'Erwin Regehr|Colonia':5, 'Frank Klaassen|Tambo':7, 'Garcia|Puerto viejo':20, 'Henry|Casa':2,
+  'Jimmy Holstein|San Javier':14, 'Manuel Pereira|El Porvenir':15, 'Manuel Pereira|Merinos':100,
+  'Martin Stirling|La Porfia':80, 'Marvin|Espinillo':40, 'Marvin|La Cantera':40, 'Marvin|Los Ceibos':5,
+  'Miguel Viera|Las Mulas':13, 'Nalmer|Aguila':100, 'Nalmer|Cabure':50, 'Nalmer|Campanilla':120,
+  'Nalmer|Dolores':110, 'Nalmer|Doña Juana':120, 'Nalmer|El Aguila':100, 'Nalmer|El Araza':50,
+  'Nalmer|La Esmeralda':40, 'Nalmer|La Martita':55, 'Nalmer|Las maulas':90, 'Nalmer|Los tientos':90,
+  'Nalmer|Rolon':120, 'Nalmer|Ruta 96':110, 'Nalmer|Santa Teresa':140, 'Nalmer|Valle de Soba':60,
+  'Ralph Wiens|Cooperativa':5, 'Rodrigo Laluz|Don Jacinto':80, 'Tija|Galpon':20, 'Tija|Molina':20,
+  'Tija|Novak':20, 'Tija|San Manuel':15
+};
+function aplicarSeedDistancias(){
+  if(!S.distancias) S.distancias = {};
+  Object.keys(DIST_SEED).forEach(function(k){ S.distancias[k] = DIST_SEED[k]; });
+}
 
 function load(){
   try{ const raw = localStorage.getItem(K);
@@ -547,6 +597,10 @@ function load(){
       if(!S.param.tarifas) S.param.tarifas = { Elias:1.5 };
       if(!S.crono) S.crono = {};
       if(!S.distancias) S.distancias = {};
+      if(S.distDirty===undefined) S.distDirty = false;
+      if(!S.dosisMem){ S.dosisMem = reconstruirDosisMem(); save(); }
+      // carga única de las distancias del Sheet; después la app es la fuente
+      if(!S.distSeedV1){ aplicarSeedDistancias(); S.distSeedV1 = true; S.distDirty = true; save(); }
       if(migrarCategorias()) save();
       return;
     }
@@ -565,13 +619,48 @@ function load(){
     personas: [...SEED.personas],
     unidades: {...SEED.unidades},
     param: paramDef(), crono: {}, tipoCambio: 42, distancias: {},
-    syncUrl: '', ultBackup: null,
+    syncUrl: '', ultBackup: null, distSeedV1: true, distDirty: true,
     creado: new Date().toISOString()
   };
+  S.dosisMem = reconstruirDosisMem();
+  aplicarSeedDistancias();
   save();
 }
 function save(){ try{ localStorage.setItem(K, JSON.stringify(S)); }catch(e){ toast('Sin espacio para guardar','err'); } }
 function uid(){ return Math.random().toString(36).slice(2,10); }
+
+/* ====== BORRADOR: lo que estás cargando sobrevive a que el celular cierre la app ======
+   El trabajo en curso (lote, productos, dosis, caldo, precio…) vive en memoria. Si iOS
+   cierra la app en segundo plano, al reabrir se perdía todo. Acá lo guardamos aparte y lo
+   restauramos, sin necesidad de apretar "Guardar trabajo" (así el cronómetro sigue corriendo). */
+var KD = 'droneApp_draft_v1';
+var DRAFT_INPUTS = ['fHa','fPrecio','fCaldo','fMaxTanque','fHasTancada','fViento','fHoras','fKm',
+                    'sProdNombre','sProdDosis','sCantTotal'];
+var _draftListo = false;   // se arma recién después de restaurar, para no pisar un borrador bueno
+function draftVacio(){
+  if(F.tipo||F.cliente||F.est||F.lote||F.persona) return false;
+  if((F.prods||[]).some(p=>p&&p.n) || (F.adys||[]).some(p=>p&&p.n)) return false;
+  return !DRAFT_INPUTS.some(id=>{ const el=$(id); return el && String(el.value).trim(); });
+}
+function saveDraft(){
+  if(!_draftListo || F.editId) return;              // no guardamos borradores de una edición
+  if(draftVacio()){ clearDraft(); return; }
+  const inp={}; DRAFT_INPUTS.forEach(id=>{ const el=$(id); if(el) inp[id]=el.value; });
+  try{ localStorage.setItem(KD, JSON.stringify({F:F, inp:inp, ts:Date.now()})); }catch(e){}
+}
+function clearDraft(){ try{ localStorage.removeItem(KD); }catch(e){} }
+function restoreDraft(){
+  let d=null; try{ d=JSON.parse(localStorage.getItem(KD)||'null'); }catch(e){}
+  if(!d || !d.F || d.F.editId) return false;
+  if(d.ts && (Date.now()-d.ts) > 48*3600*1000){ clearDraft(); return false; }  // borrador viejo: se descarta
+  F = d.F;
+  if(!F.prods) F.prods=[];
+  if(!F.adys)  F.adys=[];
+  renderAll();
+  DRAFT_INPUTS.forEach(id=>{ const el=$(id); if(el && d.inp && d.inp[id]!=null) el.value=d.inp[id]; });
+  calcAll();
+  return true;
+}
 
 /* ====== CAPA 1: pedir que el navegador NO borre los datos ====== */
 async function pedirPersistencia(){
@@ -685,6 +774,7 @@ function renderModoTipo(){
     $('simpleLbl').textContent = F.tipo==='Sembrar' ? 'Semilla'
       : (F.tipo==='Cebo' ? 'Cebo' : 'Fertilizante');
   }
+  renderSugerencias();
 }
 
 /* ================= EDITAR UN TRABAJO YA CARGADO ================= */
@@ -776,22 +866,24 @@ function pickTipo(t){
 function renderSimpleDatalist(){
   $('dl-simple').innerHTML = S.productos.map(p=>`<option value="${esc(p)}">`).join('');
 }
+// al escribir/elegir el nombre en el flujo simple, si no hay dosis cargada, pongo la usual
+function simpleProdNombre(){
+  const n = $('sProdNombre').value.trim();
+  if(n && num($('sProdDosis').value)==null){
+    const du = dosisUsual(F.tipo, n);
+    if(du){ $('sProdDosis').value = dec(du.d); F.cantManual=false; }
+  }
+  simpleProd();
+}
 function simpleProd(){
   const n = $('sProdNombre').value.trim();
   const dd = num($('sProdDosis').value);
   F.prods = n ? [{n, d:dd}] : [];
   F.adys = [];
   calcAll();
+  renderSugerencias();
 }
-function renderRecetasSimple(){
-  if(!F.tipo || !TIPOS_SIMPLES.includes(F.tipo)){ return; }
-  let rs = S.recetas.filter(r=>r.tipo===F.tipo && r.prods && r.prods.length===1);
-  rs.sort((a,b)=>b.usos - a.usos);
-  $('fRecetasSimple').innerHTML = rs.slice(0,8).map(r=>{
-    const p=r.prods[0];
-    return `<button class="chip sm" onclick="aplicarSimple(${esc(JSON.stringify(p.n))},${p.d==null?'null':p.d})">${esc(p.n)}${p.d!=null?` <span class="n">${dec(p.d)}</span>`:''}</button>`;
-  }).join('');
-}
+function renderRecetasSimple(){ /* mezclas precargadas quitadas a pedido de Ricardo */ }
 function aplicarSimple(nombre, dosis){
   $('sProdNombre').value = nombre;
   $('sProdDosis').value = dec(dosis);
@@ -844,7 +936,7 @@ function renderKm(){
   const km = num($('fKm').value);
   if(km){
     const c = costoTraslado(km);
-    $('kmHint').innerHTML = `Ida y vuelta ${dec(km*2)} km · gasoil estimado <b>$${c.toFixed(2)}</b>`
+    $('kmHint').innerHTML = `Ida y vuelta ${dec(km*2)} km · costo del viaje <b>$${c.toFixed(2)}</b>`
       + (S.distancias[F.cliente+'|'+F.est]!=null && !F.kmManual ? ' · guardada de antes' : '');
   } else {
     $('kmHint').textContent = 'Se guarda para este establecimiento y se autocompleta la próxima.';
@@ -874,14 +966,7 @@ function bumpHa(d){ const e=$('fHa'); e.value = dec(+Math.max(0,(num(e.value)||0
 function bumpCaldo(d){ const e=$('fCaldo'); e.value = dec(+Math.max(0,(num(e.value)||0)+d).toFixed(2)); calcAll(); }
 
 /* ================= RECETAS ================= */
-function renderRecetas(){
-  let rs = S.recetas.slice();
-  if(F.tipo) rs = rs.filter(r=>!r.tipo || r.tipo===F.tipo);
-  rs.sort((a,b)=>(b.fav?1000:0)+b.usos - ((a.fav?1000:0)+a.usos));
-  $('fRecetas').innerHTML = rs.slice(0,8).map(r=>
-    `<button class="chip sm" onclick="aplicarReceta('${r.id}')">${esc(r.nombre)} <span class="n">${r.usos}×</span></button>`).join('')
-    + (rs.length>8?`<button class="chip add sm" onclick="openPick('receta')">⋯ ver todas</button>`:'');
-}
+function renderRecetas(){ /* mezclas precargadas quitadas a pedido de Ricardo */ }
 function aplicarReceta(id){
   const r = S.recetas.find(x=>x.id===id); if(!r) return;
   F.prods = r.prods.map(p=>({n:p.n, d:p.d}));
@@ -902,14 +987,95 @@ function dosisHaDe(item, esAdy, caldo){
   if(esAdy && item.u==='100L') return item.d * (caldo||0) / 100;
   return item.d;
 }
+/* ====== memoria de dosis y productos más usados ====== */
+// dosis que solés usar de un producto en cierto tipo de trabajo (ej: Fertilizar+Urea → 100 kg/ha)
+function dosisUsual(tipo, nombre){
+  if(!tipo || !nombre) return null;
+  const m = S.dosisMem && S.dosisMem[tipo+'|'+nombre];
+  if(m && m.d!=null) return {d:m.d, u:m.u||unidadDe(nombre,tipo)};
+  return null;
+}
+// productos más usados para un tipo de trabajo, ordenados por cantidad de usos
+function topProductos(tipo, n){
+  const mem = S.dosisMem||{}, arr=[];
+  Object.keys(mem).forEach(k=>{
+    const i=k.indexOf('|'); if(i<0) return;
+    const tp=k.slice(0,i), nombre=k.slice(i+1);
+    if(tp!==tipo || !nombre) return;
+    const m=mem[k];
+    arr.push({n:nombre, d:m.d, u:m.u||unidadDe(nombre,tipo), usos:m.usos||0, ult:m.ult||''});
+  });
+  arr.sort((a,b)=> (b.usos-a.usos) || (a.ult<b.ult?1:-1));
+  return arr.slice(0, n||6);
+}
+// dibuja los chips de "más usados" en el bloque que corresponda al tipo actual
+function renderSugerencias(){
+  const tipo=F.tipo, fum=esFumigacion(), simple = tipo && TIPOS_SIMPLES.includes(tipo);
+  const cs=$('sugSimple'), cf=$('sugProds');
+  if(cs && !simple) cs.innerHTML='';
+  if(cf && !(fum && tipo)) cf.innerHTML='';
+  const cont = simple ? cs : (fum && tipo ? cf : null);
+  if(!cont || !tipo){ return; }
+  const top = topProductos(tipo, 6);
+  if(!top.length){ cont.innerHTML=''; return; }
+  const puestos = new Set((F.prods||[]).map(p=>(p.n||'').trim().toLowerCase()));
+  const chips = top.map(o=>{
+    const on = puestos.has(o.n.toLowerCase());
+    const dl = o.d!=null ? `<span class="n">${dec(o.d)} ${o.u}</span>` : '';
+    return `<button class="chip sm sug${on?' on':''}" onclick="pickSugProd(${esc(JSON.stringify(o.n))})">${esc(o.n)}${dl}</button>`;
+  }).join('');
+  cont.innerHTML = `<div class="sugttl">Más usados</div><div class="chips">${chips}</div>`;
+}
+// tocar un chip: carga el producto con su dosis usual (editable)
+function pickSugProd(nombre){
+  const du = dosisUsual(F.tipo, nombre);
+  const d = du ? du.d : null;
+  if(F.tipo && TIPOS_SIMPLES.includes(F.tipo)){
+    $('sProdNombre').value = nombre;
+    $('sProdDosis').value = dec(d);
+    F.cantManual=false; simpleProd();
+  } else {
+    let i = F.prods.findIndex(p=>!p.n);
+    if(i<0){ F.prods.push({n:nombre, d:d}); }
+    else { F.prods[i].n=nombre; F.prods[i].d=d; }
+    renderProds(); calcAll();
+  }
+}
+// al escribir/elegir el nombre en la mezcla, prellenar la dosis usual si está vacía
+function setProdNombre(i, val){
+  if(!F.prods[i]) return;
+  F.prods[i].n = val;
+  if(F.prods[i].d==null){
+    const du = dosisUsual(F.tipo, val.trim());
+    if(du){ F.prods[i].d = du.d; const el=$('pd-p-'+i); if(el) el.value=dec(du.d); }
+  }
+  calcAll();
+}
+// reconstruye la memoria de dosis a partir de los trabajos ya cargados
+function reconstruirDosisMem(){
+  const mem={};
+  (S.trabajos||[]).forEach(t=>{
+    if(!t.tipo || !t.prods) return;
+    t.prods.forEach(p=>{
+      if(!p.n || p.d==null) return;
+      const k=t.tipo+'|'+p.n, f=t.fecha||'';
+      const cur=mem[k]||{d:p.d, usos:0, ult:''};
+      cur.usos++;
+      if(!cur.ult || f>=cur.ult){ cur.d=p.d; cur.ult=f; }
+      mem[k]=cur;
+    });
+  });
+  Object.keys(mem).forEach(k=>{ const i=k.indexOf('|'); mem[k].u=unidadDe(k.slice(i+1), k.slice(0,i)); });
+  return mem;
+}
 function renderProds(){
   const prod = (i)=>{
     const p=F.prods[i];
     return `<div class="mezfila">
       <div class="mrow">
         <input class="pn" list="dl-p" placeholder="Producto" value="${esc(p.n)}"
-               oninput="F.prods[${i}].n=this.value;calcAll()">
-        <input class="pd" type="text" inputmode="decimal" placeholder="dosis/ha" value="${dec(p.d)}"
+               oninput="setProdNombre(${i}, this.value)">
+        <input class="pd" id="pd-p-${i}" type="text" inputmode="decimal" placeholder="dosis/ha" value="${dec(p.d)}"
                oninput="F.prods[${i}].d=num(this.value);calcAll()">
         <button class="x" onclick="F.prods.splice(${i},1);renderProds();calcAll()">×</button>
       </div>
@@ -936,6 +1102,7 @@ function renderProds(){
   $('fProds').innerHTML =
     F.prods.map((_,i)=>prod(i)).join('') +
     F.adys.map((_,i)=>ady(i)).join('');
+  renderSugerencias();
 }
 // los datalists se pueblan una sola vez, fuera de las filas (no se regeneran al tipear)
 function renderDatalists(){
@@ -955,6 +1122,7 @@ function calcAll(){
   if(F.tipo && TIPOS_SIMPLES.includes(F.tipo)) calcSimple(ha);
   else calcFumigacion(ha);
   renderKm();
+  saveDraft();
 }
 
 // sembrar / cebo / fertilizar: un producto, su dosis, y la cantidad total
@@ -999,25 +1167,39 @@ function calcFumigacion(ha){
       : `<span style="color:var(--bad)">Los productos suman más que el caldo/ha</span>`;
   } else { $('aguaHint').textContent=''; F.agua=null; }
 
-  // panel de la tancada
+  // panel de la tancada (grilla de resultados)
   const res = $('tancRes');
   if(litrosTancada>0){
     const excede = maxTanque>0 && litrosTancada>maxTanque;
-    res.style.display='block';
-    $('tLitros').textContent = fmt(litrosTancada,0)+' L por tancada';
+    res.style.display='grid';
+    $('tLitros').innerHTML = fmt(litrosTancada,0)+' <small>L</small>';
     $('tLitros').style.color = excede ? '#fca5a5' : '';
     $('tLitrosSub').textContent = `${dec(hasTancada)} ha × ${dec(caldo)} L/ha`
-      + (excede ? ` — ¡pasa del tanque de ${dec(maxTanque)} L!` : '');
+      + (excede ? ` · ¡pasa del tanque de ${dec(maxTanque)} L!` : '');
+    $('tLitrosSub').style.color = excede ? '#fca5a5' : '';
     if(ha>0){
       const n = Math.ceil(ha/hasTancada);
       F.tancadas = n;
       $('tNum').textContent = n;
       const ultHa = ha-(n-1)*hasTancada;
-      $('tUltima').textContent = `${fmt(ultHa,1)} ha · ${fmt(ultHa*caldo,0)} L`;
+      $('tUltima').innerHTML = `${fmt(ultHa,1)} ha <small>(${fmt(ultHa*caldo,0)} L)</small>`;
     } else { F.tancadas=null; $('tNum').textContent='—'; $('tUltima').textContent='—'; }
-    $('tAguaT').textContent = (aguaHa!=null&&aguaHa>=0) ? fmt(aguaHa*hasTancada,0)+' L' : '—';
-    $('tAguaL').textContent = (aguaHa!=null&&aguaHa>=0&&ha) ? fmt(aguaHa*ha,0)+' L' : '—';
+    $('tAguaL').innerHTML = (aguaHa!=null&&aguaHa>=0&&ha) ? fmt(aguaHa*ha,0)+' <small>L</small>' : '—';
   } else { res.style.display='none'; F.tancadas=null; }
+
+  // totales de la mezcla: producto por tancada y por lote, + agua por tancada
+  const mt = $('mezTot');
+  if(mt){
+    const totHa = F.prods.filter(p=>p.n && p.d!=null)
+      .reduce((a,p)=>a + dosisHaDe(p,false,caldo), 0);
+    if(totHa>0 && (hasTancada>0 || ha>0)){
+      const filas = [];
+      if(hasTancada>0) filas.push(`<div class="tot"><span>Total productos / tancada</span><b>${fmt(totHa*hasTancada,1)} L</b></div>`);
+      if(ha>0)         filas.push(`<div class="tot"><span>Total productos / lote</span><b>${fmt(totHa*ha,1)} L</b></div>`);
+      if(aguaHa!=null&&aguaHa>=0&&hasTancada>0) filas.push(`<div class="tot agua"><span>💧 Agua / tancada</span><b>${fmt(aguaHa*hasTancada,0)} L</b></div>`);
+      mt.innerHTML = filas.join('');
+    } else mt.innerHTML='';
+  }
 
   // cantidad de cada producto/adyuvante POR TANCADA y POR LOTE
   const pinta = (elId, item, esAdy)=>{
@@ -1118,9 +1300,16 @@ function guardarTrabajo(){
   S.jer[t.cliente][est][t.lote||'—'] = ha;
   t.prods.forEach(p=>{ if(!S.productos.includes(p.n)) S.productos.push(p.n); });
   t.adys.forEach(p=>{ if(!S.adyuvantes.includes(p.n)) S.adyuvantes.push(p.n); });
+  // recordar la dosis usual de cada producto para este tipo de trabajo
+  S.dosisMem = S.dosisMem || {};
+  t.prods.forEach(p=>{
+    if(!p.n || p.d==null) return;
+    const k = t.tipo+'|'+p.n, prev = S.dosisMem[k] || {usos:0};
+    S.dosisMem[k] = {d:p.d, u:unidadDe(p.n,t.tipo), usos:(prev.usos||0)+1, ult:t.fecha||hoyISO()};
+  });
   if(t.ay && !S.personas.includes(t.ay)) S.personas.push(t.ay);
   // guardar la distancia del establecimiento para autocompletar la próxima
-  if(t.km!=null && t.est) S.distancias[t.cliente+'|'+t.est] = t.km;
+  if(t.km!=null && t.est){ S.distancias[t.cliente+'|'+t.est] = t.km; S.distDirty = true; }
 
   // receta: si la mezcla ya existe suma uso, si no la crea
   const firma = j=>[...j.prods,...j.adys].map(p=>p.n+':'+p.d).sort().join('|');
@@ -1144,6 +1333,7 @@ function guardarTrabajo(){
   if(eraEdicion){ renderHist(); }
 }
 function limpiarForm(manual){
+  clearDraft();
   const cli=F.cliente, est=F.est, tipo=F.tipo;
   resetF();
   if(!manual){ F.cliente=cli; F.est=est; F.tipo=tipo; }  // mismo campo, otro lote
@@ -1248,7 +1438,7 @@ function renderPick(){
   const exact = opts.some(o=>o.toLowerCase()===q);
   $('pickList').innerHTML =
     (q && !exact ? `<div class="item" onclick="pickChoose(${JSON.stringify($('pickQ').value.trim()).replace(/"/g,'&quot;')},true)">
-        <div class="l"><div class="t1" style="color:var(--accent)">+ Agregar "${esc($('pickQ').value.trim())}"</div>
+        <div class="l"><div class="t1" style="color:var(--accent)">+ Agregar “${esc($('pickQ').value.trim())}”</div>
         <div class="t2">Nuevo, se guarda para la próxima</div></div></div>` : '') +
     fs.map(o=>`<div class="item" onclick="pickChoose(${JSON.stringify(o).replace(/"/g,'&quot;')})">
       <div class="l"><div class="t1">${esc(o)}</div></div></div>`).join('');
@@ -1290,6 +1480,45 @@ function renderHist(){
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
     <div>Sin resultados</div></div>`;
   if(ts.length>150) $('histList').innerHTML += `<div class="hint" style="text-align:center">Mostrando 150 de ${ts.length}. Afiná la búsqueda.</div>`;
+}
+function verDetalle(id){
+  const t = S.trabajos.find(x=>x.id===id); if(!t)return;
+  const tot=(t.ha&&t.precio)?t.ha*t.precio:null;
+  const items=[...(t.prods||[]).map(p=>({...p,ady:false})),...(t.adys||[]).map(p=>({...p,ady:true}))];
+  $('detalleBody').innerHTML = `
+    <h3>${esc(t.cliente)} · ${esc(t.tipo)}</h3>
+    <div class="t2" style="color:var(--dim);margin:-10px 0 16px">${t.fecha.split('-').reverse().join('/')}
+      ${[t.est,t.lote].filter(Boolean).length?' · '+esc([t.est,t.lote].filter(Boolean).join(' / ')):''}</div>
+    <div class="grid2">
+      <div class="stat"><div class="v">${fmtHa(t.ha)}</div><div class="k">hectáreas</div></div>
+      <div class="stat"><div class="v">${tot?'$'+fmt(tot):'—'}</div><div class="k">total ${t.precio?'· $'+t.precio+'/ha':''}</div></div>
+    </div>
+    ${items.length?`<div class="card tight"><div class="lbl">Mezcla</div>${items.map(p=>{
+      const un = unidadDe(p.n, t.tipo, p.ady);
+      const tot = (p.d&&t.ha) ? cantidadTotal(p.d, t.ha, un) : null;
+      return `<div class="tankrow" style="border-color:var(--line)">
+       <span class="nm" style="color:var(--txt)">${esc(p.n)}</span>
+       <span class="qt" style="color:var(--txt);font-size:16px">${dec(p.d)||'—'}<small style="color:var(--dim)"> ${un}/ha</small>
+       ${tot?`<small style="color:var(--dim)"> · ${fmt(tot.v, tot.v<10?2:(tot.v<100?1:0))} ${tot.u}</small>`:''}</span></div>`;
+      }).join('')}
+      ${t.caldo?`<div class="hint">Caldo ${dec(t.caldo)} L/ha · ${fmt(t.caldo*t.ha)} L totales</div>`:''}
+      ${t.agua?`<div class="hint">💧 Agua ${dec(t.agua)} L/ha · ${fmt(t.agua*t.ha)} L totales</div>`:''}
+      ${t.cantTotal?`<div class="hint">📦 Total usado: ${fmt(t.cantTotal,1)} ${t.prods&&t.prods[0]?unidadDe(t.prods[0].n,t.tipo):''}</div>`:''}
+      ${t.tancadas?`<div class="hint">🚁 ${t.tancadas} tancada${t.tancadas===1?'':'s'}${
+        t.maxTanque?` de hasta ${dec(t.maxTanque)} L`:''}</div>`:''}</div>`:''}
+    <div class="row mb">
+      <button class="chip${t.fact?' on':''}" style="justify-content:center" onclick="tog('${t.id}','fact')">
+        ${t.fact?'✓ Facturado':'Facturado'}</button>
+      <button class="chip${t.cobr?' on':''}" style="justify-content:center" onclick="tog('${t.id}','cobr')">
+        ${t.cobr?'✓ Cobrado':'Cobrado'}</button>
+    </div>
+    ${[t.viento?'Viento '+t.viento+' km/h':'',t.horas?t.horas+' h':'',t.ay?'Ayudante: '+t.ay:'']
+      .filter(Boolean).map(x=>`<div class="hint">${esc(x)}</div>`).join('')}
+    <div class="divide"></div>
+    <button class="btn sm mb" onclick="editarTrabajo('${t.id}')">✎ Editar este trabajo</button>
+    <button class="btn ghost sm mb" onclick="repetir('${t.id}')">↻ Repetir como uno nuevo</button>
+    <button class="btn danger sm" onclick="borrarTrabajo('${t.id}')">Borrar</button>`;
+  $('shDetalle').classList.add('on');
 }
 function tog(id,k){ const t=S.trabajos.find(x=>x.id===id); t[k]=!t[k]; save(); verDetalle(id); renderHist(); }
 function repetir(id){
@@ -1383,146 +1612,17 @@ function guardarGasto(){
   renderGastos(); updateSyncPill(); sincronizar(); toast('Gasto guardado');
 }
 
-function verDetalle(id){
-  const t = S.trabajos.find(x=>x.id===id); if(!t)return;
-  const tot=(t.ha&&t.precio)?t.ha*t.precio:null;
-  const items=[...(t.prods||[]).map(p=>({...p,ady:false})),...(t.adys||[]).map(p=>({...p,ady:true}))];
-  $('detalleBody').innerHTML = `
-    <h3>${esc(t.cliente)} · ${esc(t.tipo)}</h3>
-    <div class="t2" style="color:var(--dim);margin:-10px 0 16px">${t.fecha.split('-').reverse().join('/')}
-      ${[t.est,t.lote].filter(Boolean).length?' · '+esc([t.est,t.lote].filter(Boolean).join(' / ')):''}</div>
-    <div class="grid2">
-      <div class="stat"><div class="v">${fmtHa(t.ha)}</div><div class="k">hectáreas</div></div>
-      <div class="stat"><div class="v">${tot?'$'+fmt(tot):'—'}</div><div class="k">total ${t.precio?'· $'+t.precio+'/ha':''}</div></div>
-    </div>
-    ${items.length?`<div class="card tight"><div class="lbl">Mezcla</div>${items.map(p=>{
-      const un = unidadDe(p.n, t.tipo, p.ady);
-      const tot = (p.d&&t.ha) ? cantidadTotal(p.d, t.ha, un) : null;
-      return `<div class="tankrow" style="border-color:var(--line)">
-       <span class="nm" style="color:var(--txt)">${esc(p.n)}</span>
-       <span class="qt" style="color:var(--txt);font-size:16px">${dec(p.d)||'—'}<small style="color:var(--dim)"> ${un}/ha</small>
-       ${tot?`<small style="color:var(--dim)"> · ${fmt(tot.v, tot.v<10?2:(tot.v<100?1:0))} ${tot.u}</small>`:''}</span></div>`;
-      }).join('')}
-      ${t.caldo?`<div class="hint">Caldo ${dec(t.caldo)} L/ha · ${fmt(t.caldo*t.ha)} L totales</div>`:''}
-      ${t.agua?`<div class="hint">💧 Agua ${dec(t.agua)} L/ha · ${fmt(t.agua*t.ha)} L totales</div>`:''}
-      ${t.cantTotal?`<div class="hint">📦 Total usado: ${fmt(t.cantTotal,1)} ${t.prods&&t.prods[0]?unidadDe(t.prods[0].n,t.tipo):''}</div>`:''}
-      ${t.tancadas?`<div class="hint">🚁 ${t.tancadas} tancada${t.tancadas===1?'':'s'}${
-        t.maxTanque?` de hasta ${dec(t.maxTanque)} L`:''}</div>`:''}</div>`:''}
-    <div class="row mb">
-      <button class="chip${t.fact?' on':''}" style="justify-content:center" onclick="tog('${t.id}','fact')">
-        ${t.fact?'✓ Facturado':'Facturado'}</button>
-      <button class="chip${t.cobr?' on':''}" style="justify-content:center" onclick="tog('${t.id}','cobr')">
-        ${t.cobr?'✓ Cobrado':'Cobrado'}</button>
-    </div>
-    ${[t.viento?'Viento '+t.viento+' km/h':'',t.horas?t.horas+' h':'',t.ay?'Ayudante: '+t.ay:'']
-      .filter(Boolean).map(x=>`<div class="hint">${esc(x)}</div>`).join('')}
-    <div class="divide"></div>
-    <button class="btn sm mb" onclick="editarTrabajo('${t.id}')">✎ Editar este trabajo</button>
-    <button class="btn ghost sm mb" onclick="exportarPDF('${t.id}')">📄 Exportar PDF</button>
-    <button class="btn ghost sm mb" onclick="repetir('${t.id}')">↻ Repetir como uno nuevo</button>
-    <button class="btn danger sm" onclick="borrarTrabajo('${t.id}')">Borrar</button>`;
-  $('shDetalle').classList.add('on');
-}
-
-/* ================= EXPORTAR TRABAJO A PDF ================= */
-// arma un reporte imprimible de un trabajo y abre el diálogo de impresión del
-// teléfono; desde ahí "Guardar en PDF" (o compartir) lo convierte en PDF real,
-// sin depender de ninguna librería ni de conexión a internet
-function reportePDF(t){
-  const tot = (t.ha&&t.precio)?t.ha*t.precio:null;
-  const items=[...(t.prods||[]).map(p=>({...p,ady:false})),...(t.adys||[]).map(p=>({...p,ady:true}))];
-  const fechaLarga = t.fecha.split('-').reverse().join('/');
-  const filasMezcla = items.map(p=>{
-    const un = unidadDe(p.n, t.tipo, p.ady);
-    const totQ = (p.d && t.ha) ? cantidadTotal(p.d, t.ha, un) : null;
-    return `<tr>
-      <td>${esc(p.n)}${p.ady?' <span style="color:#888;font-size:11px">(adyuvante)</span>':''}</td>
-      <td style="text-align:right">${p.d!=null?dec(p.d):'—'} ${un}/ha</td>
-      <td style="text-align:right">${totQ?fmt(totQ.v, totQ.v<10?2:(totQ.v<100?1:0))+' '+totQ.u:'—'}</td>
-    </tr>`;
-  }).join('');
-  return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
-  <title>Trabajo ${esc(t.cliente)} ${fechaLarga}</title>
-  <style>
-    *{box-sizing:border-box}
-    body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#111;padding:28px;font-size:14px;line-height:1.5}
-    h1{font-size:20px;margin:0 0 2px}
-    h2{font-size:15px;margin:22px 0 8px;border-bottom:1px solid #ccc;padding-bottom:4px}
-    .sub{color:#555;font-size:13px;margin-bottom:18px}
-    table{width:100%;border-collapse:collapse;margin-bottom:6px}
-    th,td{padding:6px 4px;border-bottom:1px solid #ddd;text-align:left;font-size:13px}
-    .grid{display:flex;flex-wrap:wrap;gap:0 24px;margin-bottom:6px}
-    .grid div{min-width:150px;margin-bottom:8px}
-    .k{color:#666;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
-    .v{font-size:16px;font-weight:700}
-    footer{margin-top:30px;color:#999;font-size:11px}
-    @media print{ body{padding:8px} }
-  </style></head><body>
-  <h1>${esc(t.cliente)} — ${esc(t.tipo)}</h1>
-  <div class="sub">${fechaLarga}${[t.est,t.lote].filter(Boolean).length?' · '+esc([t.est,t.lote].filter(Boolean).join(' / ')):''}</div>
-
-  <div class="grid">
-    <div><div class="k">Hectáreas</div><div class="v">${fmtHa(t.ha)} ha</div></div>
-    <div><div class="k">Precio</div><div class="v">${t.precio?'$'+dec(t.precio)+'/ha':'—'}</div></div>
-    <div><div class="k">Total</div><div class="v">${tot?'$'+fmt(tot):'—'}</div></div>
-    ${t.viento!=null?`<div><div class="k">Viento</div><div class="v">${dec(t.viento)} km/h</div></div>`:''}
-    ${t.horas!=null?`<div><div class="k">Horas</div><div class="v">${dec(t.horas)} h</div></div>`:''}
-    ${t.ay?`<div><div class="k">Ayudante</div><div class="v">${esc(t.ay)}</div></div>`:''}
-    ${t.km!=null?`<div><div class="k">Distancia (ida)</div><div class="v">${dec(t.km)} km</div></div>`:''}
-  </div>
-
-  ${items.length?`<h2>Mezcla</h2>
-  <table><thead><tr><th>Producto</th><th style="text-align:right">Dosis</th><th style="text-align:right">Cantidad total</th></tr></thead>
-  <tbody>${filasMezcla}</tbody></table>` : ''}
-
-  ${t.caldo?`<div class="grid"><div><div class="k">Caldo</div><div class="v">${dec(t.caldo)} L/ha</div></div>
-    <div><div class="k">Caldo total</div><div class="v">${fmt(t.caldo*t.ha)} L</div></div></div>`:''}
-  ${t.agua?`<div class="grid"><div><div class="k">Agua</div><div class="v">${dec(t.agua)} L/ha</div></div>
-    <div><div class="k">Agua total</div><div class="v">${fmt(t.agua*t.ha)} L</div></div></div>`:''}
-  ${t.tancadas?`<div class="grid"><div><div class="k">Tancadas</div><div class="v">${t.tancadas}${t.maxTanque?' · tanque '+dec(t.maxTanque)+' L':''}</div></div></div>`:''}
-  ${t.cantTotal?`<div class="grid"><div><div class="k">Cantidad total usada</div><div class="v">${fmt(t.cantTotal,1)} ${items[0]?unidadDe(items[0].n,t.tipo):''}</div></div></div>`:''}
-
-  <footer>Reporte generado el ${new Date().toLocaleDateString('es-UY')}</footer>
-  </body></html>`;
-}
-function exportarPDF(id){
-  const t = S.trabajos.find(x=>x.id===id); if(!t) return;
-  const html = reportePDF(t);
-  // se abre en una pestaña nueva en blanco (no en un iframe escondido) para que el
-  // pie de impresión del navegador no muestre la dirección de tu app: al imprimir
-  // desde una pestaña "about:blank" no aparece ningún link identificable
-  const win = window.open('', '_blank');
-  if(!win){ toast('Habilitá las ventanas emergentes para exportar el PDF','err'); return; }
-  win.document.open(); win.document.write(html); win.document.close();
-  setTimeout(()=>{
-    try{ win.focus(); win.print(); }
-    catch(e){ toast('No se pudo abrir la impresión','err'); }
-  }, 300);
-  toast('Elegí "Guardar en PDF" en el diálogo de impresión');
-}
-
 /* ================= NÚMEROS ================= */
 var numPer='mes';
-var numMes = hoyISO().slice(0,7);   // mes elegido en el selector (YYYY-MM)
-function numMesElegido(v){
-  if(!v) return;
-  numMes = v; numPer='mesX'; renderNum();
-}
-function mesCortoLargo(ym){ const [y,m]=ym.split('-');
-  return ['','enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][+m]+' de '+y; }
 function renderNum(){
   const PER=[['mes','Este mes'],['3m','3 meses'],['anio','Este año'],['todo','Todo']];
   $('numPeriodo').innerHTML = PER.map(([k,l])=>
-    `<button class="chip sm${numPer===k?' on':''}" onclick="numPer='${k}';renderNum()">${l}</button>`).join('')
-    + `<label class="chip sm${numPer==='mesX'?' on':''}" style="gap:6px;padding:6px 10px 6px 13px">📅
-        <input type="month" id="numMesPick" value="${numMes}" onchange="numMesElegido(this.value)"
-               style="width:auto;min-height:auto;background:transparent;border:none;padding:2px 0;font-size:14px;color:inherit"></label>`;
-  const hoy=new Date(); let desde='0000-00-00', hasta='9999-99-99';
+    `<button class="chip sm${numPer===k?' on':''}" onclick="numPer='${k}';renderNum()">${l}</button>`).join('');
+  const hoy=new Date(); let desde='0000-00-00';
   if(numPer==='mes') desde=hoyISO().slice(0,8)+'01';
   if(numPer==='3m'){ const d=new Date(hoy); d.setMonth(d.getMonth()-3); desde=d.toISOString().slice(0,10); }
   if(numPer==='anio') desde=hoyISO().slice(0,4)+'-01-01';
-  if(numPer==='mesX'){ desde = numMes+'-01'; hasta = numMes+'-31'; }
-  const ts = S.trabajos.filter(t=>t.fecha>=desde && t.fecha<=hasta);
+  const ts = S.trabajos.filter(t=>t.fecha>=desde);
   const tot = t=>(t.ha&&t.precio)?t.ha*t.precio:0;
   const ha = ts.reduce((a,t)=>a+(t.ha||0),0);
   const fact = ts.reduce((a,t)=>a+tot(t),0);
@@ -1575,21 +1675,26 @@ function renderNum(){
 // Modelo de costos: el dron se alquila a un fijo por hectárea (reemplaza amortización
 // y baterías). El pago a ayudantes por hectárea se calcula solo desde los trabajos.
 function paramDef(){
-  return { alquilerHa:1.5, margen:35, tarifas:{ Elias:1.5 }, rendimiento:8, precioGasoil:1.3 };
+  return { alquilerHa:1.5, margen:35, tarifas:{ Elias:1.5 }, costoKm:0.28 };
 }
 function params(){
   if(!S.param) S.param = paramDef();
   if(S.param.alquilerHa===undefined) S.param.alquilerHa = 1.5;   // migración desde amortización
   if(!S.param.tarifas) S.param.tarifas = { Elias:1.5 };
-  if(S.param.rendimiento===undefined) S.param.rendimiento = 8;   // km por litro de gasoil
-  if(S.param.precioGasoil===undefined) S.param.precioGasoil = 1.3; // USD por litro
+  if(S.param.costoKm===undefined) S.param.costoKm = 0.28;        // costo completo por km recorrido
   return S.param;
 }
-// costo de gasoil de ir y volver a un trabajo, dado los km de ida
+// costo del viaje de ir y volver, dado los km de ida: km recorridos (×2) × costo por km
 function costoTraslado(km){
   const p=params();
-  if(!km || !p.rendimiento || !p.precioGasoil) return 0;
-  return (km*2 / p.rendimiento) * p.precioGasoil;
+  if(!km || !p.costoKm) return 0;
+  return km*2 * p.costoKm;
+}
+// tarifa efectiva del ayudante según el tipo: plena en siembra/fertilización, la mitad en el resto
+var TIPOS_PLENA = ['Sembrar','Fertilizar'];
+function tarifaAyudante(nombre, tipo){
+  const base = (params().tarifas[nombre]) || 0;
+  return TIPOS_PLENA.includes(tipo) ? base : base * 0.5;
 }
 function toggleParam(){
   const b=$('paramBox');
@@ -1600,8 +1705,7 @@ function cargarParamInputs(){
   const p=params();
   $('pAlquiler').value=dec(p.alquilerHa);
   $('pMargen').value=dec(p.margen);
-  $('pRendimiento').value=dec(p.rendimiento);
-  $('pPrecioGasoil').value=dec(p.precioGasoil);
+  $('pCostoKm').value=dec(p.costoKm);
   // una fila de tarifa por cada persona conocida
   $('pTarifas').innerHTML = S.personas.map(n=>
     `<div class="kv"><span class="k">${esc(n)}</span>
@@ -1619,35 +1723,47 @@ function guardarParam(){
   const p=params();
   p.alquilerHa=num($('pAlquiler').value)||0;
   p.margen=num($('pMargen').value)||0;
-  p.rendimiento=num($('pRendimiento').value)||0;
-  p.precioGasoil=num($('pPrecioGasoil').value)||0;
+  p.costoKm=num($('pCostoKm').value)||0;
   save(); renderCostos();
 }
-// tabla de traslado por establecimiento: distancia, costo de gasoil y piso de hectáreas
+// tabla de traslado por establecimiento: distancia editable, costo del viaje y piso de hectáreas
+var _distKeys = [];
+// subtítulo de una fila: costo del viaje y piso de hectáreas
+function distSub(cli, km, m){
+  const costo = costoTraslado(km);
+  let precio = 0;
+  for(let i=S.trabajos.length-1;i>=0;i--){ const t=S.trabajos[i];
+    if(t.cliente===cli && t.precio){ precio=t.precio; break; } }
+  const margenHa = precio - (m.costoHa||0);
+  const pisoHa = (km>0 && margenHa>0) ? costo/margenHa : null;
+  return `viaje $${costo.toFixed(2)}` + (pisoHa ? ` · piso ${fmtHa(pisoHa)} ha` : (km>0 ? ' · sin precio' : ''));
+}
 function renderTraslado(){
   const cont=$('trasladoLista'); if(!cont) return;
-  const p=params();
-  // costo operativo por hectárea, de los meses medidos (para el piso de ha)
   const m=modeloCostos();
-  const filas=Object.keys(S.distancias).map(k=>{
+  const keys=Object.keys(S.distancias).sort((a,b)=>(S.distancias[b]||0)-(S.distancias[a]||0));
+  _distKeys = keys;
+  if(!keys.length){ cont.innerHTML='<div class="hint">Todavía no cargaste distancias. Aparecen acá cuando anotes km en un trabajo.</div>'; return; }
+  cont.innerHTML = keys.map((k,i)=>{
     const [cli,est]=k.split('|');
     const km=S.distancias[k];
-    const costo=costoTraslado(km);
-    // último precio cobrado a ese cliente (fumigar como referencia)
-    let precio=0;
-    for(let i=S.trabajos.length-1;i>=0;i--){ const t=S.trabajos[i];
-      if(t.cliente===cli && t.precio){ precio=t.precio; break; } }
-    // margen por hectárea (precio − costo/ha) y hectáreas mínimas para cubrir el viaje
-    const margenHa = precio - (m.costoHa||0);
-    const pisoHa = margenHa>0 ? costo/margenHa : null;
-    return {cli,est,km,costo,precio,pisoHa};
-  }).sort((a,b)=>b.km-a.km);
-  if(!filas.length){ cont.innerHTML='<div class="hint">Todavía no cargaste distancias. Aparecen acá cuando anotes km en un trabajo.</div>'; return; }
-  cont.innerHTML = filas.map(f=>
-    `<div class="kv"><span class="k">${esc(f.cli)} · ${esc(f.est)}
-      <span style="font-size:11.5px;opacity:.7">${dec(f.km)} km · gasoil $${f.costo.toFixed(2)} ida y vuelta</span></span>
-      <span class="v" style="font-size:14px">${f.pisoHa? 'piso '+fmtHa(f.pisoHa)+' ha':'—'}</span></div>`).join('')
-    + '<div class="hint" style="margin-top:8px">"Piso" = hectáreas <b>del viaje entero</b> para cubrir el gasoil de ir y volver, al precio que le cobrás a ese cliente. Si hacés varios trabajos en el mismo viaje, sumás sus hectáreas y las comparás con el piso. El gasoil real ya lo contás en Gastos: esto es solo para decidir si conviene viajar.</div>';
+    return `<div class="kv"><span class="k">${esc(cli)} · ${esc(est)}
+      <span id="distSub-${i}" style="font-size:11.5px;opacity:.7">${distSub(cli,km,m)}</span></span>
+      <span style="display:flex;align-items:center;gap:6px;flex:none">
+        <input type="text" inputmode="decimal" style="width:62px;text-align:right;padding:8px 10px"
+               value="${dec(km)}" oninput="setDistanciaIdx(${i}, this.value)" onchange="sincronizar()">
+        <span style="font-size:12px;color:var(--dim)">km</span></span></div>`;
+  }).join('')
+    + '<div class="hint" style="margin-top:8px">Editá el km de cada establecimiento acá: se guarda y se manda solo a la planilla. "Piso" = hectáreas <b>del viaje entero</b> para que el <b>margen</b> (precio menos el costo del dron por hectárea) cubra el costo de ir y volver. Es una estimación; el combustible real ya lo contás en Gastos.</div>';
+}
+// editar el km de un establecimiento desde la lista
+function setDistanciaIdx(i, val){
+  const k=_distKeys[i]; if(!k) return;
+  const n=num(val);
+  if(n==null) delete S.distancias[k]; else S.distancias[k]=n;
+  S.distDirty=true; save(); updateSyncPill();
+  const span=$('distSub-'+i);
+  if(span) span.textContent = distSub(k.split('|')[0], S.distancias[k], modeloCostos());
 }
 function modeloCostos(){
   const p = params();
@@ -1666,7 +1782,7 @@ function modeloCostos(){
     haMes[mes]=(haMes[mes]||0)+(t.ha||0);
     haAnio[a]=(haAnio[a]||0)+(t.ha||0);
     ingAnio[a]=(ingAnio[a]||0)+((t.ha&&t.precio)?t.ha*t.precio:0);
-    const tar = t.ay ? (p.tarifas[t.ay]||0) : 0;
+    const tar = t.ay ? tarifaAyudante(t.ay, t.tipo) : 0;   // plena en siembra/fert, mitad en el resto
     if(tar && t.ha) ayudAnio[a]=(ayudAnio[a]||0)+tar*t.ha;
   });
 
@@ -1770,7 +1886,7 @@ function pendientesSync(){
 }
 function updateSyncPill(){
   const p=$('syncPill'); if(!p) return;
-  const n=pendientesSync().length;
+  const n=pendientesSync().length + (S.distDirty?1:0);
   if(!S.syncUrl){ p.style.display='none'; return; }
   p.style.display = n?'inline-block':'none';
   p.className='pill'; p.textContent = n+' por enviar';
@@ -1779,14 +1895,17 @@ async function sincronizar(manual){
   if(sincronizando) return;
   if(!S.syncUrl){ if(manual) toast('Falta configurar la dirección','err'); return; }
   const pend = pendientesSync();
-  if(!pend.length){ if(manual) toast('Ya está todo enviado'); return; }
+  if(!pend.length && !S.distDirty){ if(manual) toast('Ya está todo enviado'); return; }
   if(!navigator.onLine){ if(manual) toast('Sin conexión — se envía solo después','err'); return; }
   sincronizando=true; renderSync();
+  const enviarDist = !!S.distDirty;
   try{
     const paquete = {
       trabajos: S.trabajos.filter(t=>!t.sync),
       gastos: S.gastos.filter(g=>!g.sync)
     };
+    // las distancias van como { 'Cliente|Establecimiento': km } y el script las actualiza en la hoja Distancias
+    if(enviarDist) paquete.distancias = S.distancias;
     // body como texto plano => pedido simple, sin preflight CORS
     const r = await fetch(S.syncUrl, {method:'POST', body: JSON.stringify(paquete), redirect:'follow'});
     const txt = await r.text();
@@ -1795,8 +1914,11 @@ async function sincronizar(manual){
     const ok = new Set([...(res.trabajos||[]), ...(res.gastos||[])]);
     S.trabajos.forEach(t=>{ if(ok.has(t.id)) t.sync=Date.now(); });
     S.gastos.forEach(g=>{ if(ok.has(g.id)) g.sync=Date.now(); });
+    if(enviarDist) S.distDirty = false;      // ya quedaron en la planilla
     S.ultSync = Date.now(); save();
-    toast(`${ok.size} guardado${ok.size===1?'':'s'} en tu planilla`);
+    var msg = ok.size ? `${ok.size} guardado${ok.size===1?'':'s'} en tu planilla` : 'Planilla actualizada';
+    if(enviarDist && res.distancias) msg += ` · ${res.distancias} distancia${res.distancias===1?'':'s'}`;
+    toast(msg);
   }catch(e){
     if(manual) toast('No se pudo enviar: '+e.message,'err');
   }finally{
@@ -1917,12 +2039,20 @@ function renderAll(){
   renderRecetas(); renderRecetasSimple(); renderSimpleDatalist(); renderDatalists();
   renderProds(); renderPersonas(); renderModoTipo(); calcAll(); renderModoEdicion();
 }
-load(); resetF(); renderAll(); updatePend();
+load(); resetF();
+var _recuperado = restoreDraft();     // si dejaste algo a medio cargar, vuelve
+if(!_recuperado) renderAll();
+_draftListo = true;
+updatePend();
 renderCrono();
+if(_recuperado) toast('Recuperé lo que estabas cargando');
 pedirPersistencia();
 updateSyncPill(); renderSync(); chequearBackup();
 if(S.syncUrl) sincronizar();
-window.addEventListener('beforeunload', save);
+window.addEventListener('beforeunload', ()=>{ save(); saveDraft(); });
+// iOS puede cerrar la app en segundo plano: guardamos el borrador al ocultarla
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden'){ save(); saveDraft(); } });
+window.addEventListener('pagehide', ()=>{ save(); saveDraft(); });
 </script>
 </body>
 </html>
