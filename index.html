@@ -27,6 +27,7 @@ input,select,textarea{font-family:inherit;font-size:17px;color:var(--txt);
   background:var(--card2);border:1.5px solid var(--line);border-radius:12px;
   padding:13px 14px;width:100%;outline:none;-webkit-appearance:none}
 input:focus,select,textarea:focus{border-color:var(--accent)}
+input:disabled{opacity:.45}
 select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238fae9d' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");
   background-repeat:no-repeat;background-position:right 12px center;background-size:20px;padding-right:42px}
 input[type=number]{-moz-appearance:textfield}
@@ -125,6 +126,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 .btn.sm{padding:12px;font-size:15px;border-radius:12px}
 .btn:disabled{opacity:.35}
 .btn.danger{background:transparent;border:1.5px solid #7f2d2d;color:var(--bad)}
+.btn.cobrar{background:#1f3a5a;color:#dbeafe;border:1.5px solid #2f5f8a}
 
 /* ---------- nav ---------- */
 .nav{position:fixed;bottom:0;left:0;right:0;z-index:50;display:flex;
@@ -149,6 +151,12 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   border-radius:6px;margin-left:6px;vertical-align:1px}
 .tag.no{background:#3d1f1f;color:#fca5a5}
 .tag.si{background:#14351f;color:var(--accent)}
+.tag.ot{background:#132836;color:var(--blue)}
+/* lista con casillas (cobrar todo) */
+.item .ck{flex:none;width:26px;height:26px;border-radius:8px;border:2px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-weight:900;color:#06120b;margin-top:1px}
+.item.sel{border-color:#2f6b45;background:#132a1d}
+.item.sel .ck{background:var(--accent2);border-color:var(--accent2)}
 
 /* ---------- stats ---------- */
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
@@ -166,8 +174,15 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   border-radius:22px 22px 0 0;padding:20px 16px calc(24px + var(--safe-b));
   border-top:1px solid var(--line);animation:up .22s cubic-bezier(.2,.8,.3,1)}
 @keyframes up{from{transform:translateY(100%)}}
-.sheet h3{font-size:19px;font-weight:800;margin-bottom:16px}
+.sheet h3{font-size:19px;font-weight:800;margin-bottom:16px;padding-right:44px}
 .grab{width:38px;height:4px;background:var(--line);border-radius:99px;margin:-8px auto 14px}
+/* barra de arriba de la ficha: queda fija al scrollear, con la X para cerrar */
+.shtop{position:sticky;top:-20px;z-index:3;background:var(--card);
+  margin:-20px -16px 6px;padding:10px 12px 4px;display:flex;justify-content:flex-end;
+  border-radius:22px 22px 0 0}
+.shtop .grab{position:absolute;left:50%;top:9px;transform:translateX(-50%);margin:0}
+.shx{width:40px;height:40px;border-radius:99px;background:var(--card2);border:1px solid var(--line);
+  color:var(--txt);font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center}
 
 /* ---------- toast ---------- */
 .toast{position:fixed;left:16px;right:16px;bottom:calc(90px + var(--safe-b));z-index:200;
@@ -240,6 +255,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 .kv.good .v{color:var(--accent)}
 .kv.warn .v{color:var(--warn)}
 .kv.bad .v{color:var(--bad)}
+.kv.gris .k,.kv.gris .v{color:#6f8a7c}
 .aviso{background:#2b2410;border:1px solid #7a5a12;border-radius:12px;
   padding:11px 13px;margin-bottom:13px;font-size:13.5px;color:#e8d9a8;line-height:1.45}
 .aviso.rojo{background:#2b1414;border-color:#7f2d2d;color:#f5c2c2}
@@ -277,8 +293,10 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
     <div class="row mb">
       <button class="chip" id="chHoy" onclick="setFecha(0)">Hoy</button>
       <button class="chip" id="chAyer" onclick="setFecha(-1)">Ayer</button>
-      <input type="date" id="fFecha" onchange="renderFechaChips()" style="flex:1.6">
+      <input type="date" id="fFecha" onchange="renderFechaChips();calcAll()" style="flex:1.6">
     </div>
+    <button class="chip sm mb" id="chSigue" onclick="toggleSigue()"
+            style="width:100%;justify-content:center">⛺ Sigo del día anterior (acampé, sin viaje)</button>
 
     <div class="lbl">Tipo de trabajo</div>
     <div class="chips" id="fTipo"></div>
@@ -287,6 +305,12 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   <div class="card">
     <div class="lbl">Cliente</div>
     <div class="chips mb" id="fCliente"></div>
+
+    <div id="boxOT" style="display:none" class="mb">
+      <div class="lbl" id="otLbl">Orden de trabajo (OT)</div>
+      <input type="text" id="fOT" placeholder="Número de OT (ej: 451)" oninput="calcAll()">
+      <div class="hint" id="otHint"></div>
+    </div>
 
     <div id="boxEst" style="display:none">
       <div class="lbl">Establecimiento</div>
@@ -448,7 +472,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 <div class="view" id="v-hist"><div class="wrap">
   <div class="srch">
     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
-    <input id="qHist" placeholder="Buscar cliente, lote, producto…" oninput="renderHist()">
+    <input id="qHist" placeholder="Buscar cliente, lote, OT, producto…" oninput="renderHist()">
   </div>
   <div class="chips mb" id="histFiltros"></div>
   <div id="histList"></div>
@@ -483,8 +507,12 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
     <div id="numTipos"></div>
   </div>
   <div class="card">
-    <div class="lbl">Pendiente de cobro</div>
+    <div class="lbl">💵 Pendiente de cobro <span style="text-transform:none;font-weight:600">(todos los meses)</span></div>
     <div id="numCobrar"></div>
+  </div>
+  <div class="card">
+    <div class="lbl">👷 Ayudantes — lo que les debés</div>
+    <div id="numAyud"></div>
   </div>
 
   <div class="card" id="costoBox">
@@ -495,12 +523,25 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       ⚙ Ajustar parámetros</button>
     <div id="paramBox" style="display:none;margin-top:14px">
       <div class="divide"></div>
+      <div class="lbl">Tu sueldo pretendido por año (USD)</div>
+      <input type="text" inputmode="decimal" id="pSueldo" class="mb" oninput="guardarParam()">
+      <div class="hint" style="margin-top:-8px;margin-bottom:14px">Lo que querés ganar vos por tu tiempo. Se suma al costo por hectárea como una línea aparte. Con 0 ves el negocio sin tu sueldo.</div>
       <div class="lbl">Alquiler del dron (USD/ha)</div>
       <input type="text" inputmode="decimal" id="pAlquiler" class="mb" oninput="guardarParam()">
+      <div class="lbl">Costos fijos mensuales extra (USD)</div>
+      <input type="text" inputmode="decimal" id="pFijos" class="mb" oninput="guardarParam()">
       <div class="lbl">Margen que querés ganar (%)</div>
       <input type="text" inputmode="decimal" id="pMargen" class="mb" oninput="guardarParam()">
+      <div class="lbl">Clientes de uso propio</div>
+      <input type="text" id="pPropios" class="mb" placeholder="Dubach" oninput="guardarParam()">
+      <div class="hint" style="margin-top:-8px;margin-bottom:14px">Trabajos para vos mismo: se valorizan al costo (ni ganan ni pierden). Varios, separados con coma.</div>
+      <div class="lbl">Clientes que trabajan con OT</div>
+      <input type="text" id="pClientesOT" class="mb" placeholder="Nalmer, Cina Cina" oninput="guardarParam()">
+      <div class="hint" style="margin-top:-8px;margin-bottom:14px">Con estos clientes la app te recuerda cargar el número de orden de trabajo. Separados con coma.</div>
       <div class="divide"></div>
-      <div class="lbl">Pago a ayudantes (USD/ha en siembra y fertilización)</div>
+      <div class="lbl">Pago a ayudantes — tarifa base (USD/ha en siembra y fertilización)</div>
+      <input type="text" inputmode="decimal" id="pTarifaDef" class="mb" oninput="guardarParam()">
+      <div class="lbl">Tarifa de cada ayudante</div>
       <div id="pTarifas"></div>
       <div class="hint" style="margin-top:6px">En siembra y fertilización se paga esta tarifa completa. En los demás trabajos (fumigar, cebo…) se paga la mitad.</div>
       <div class="divide"></div>
@@ -578,10 +619,11 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 
 <!-- ============ SHEETS ============ -->
 <div class="sheet" id="shDetalle" onclick="if(event.target===this)closeSheet()">
-  <div><div class="grab"></div><div id="detalleBody"></div></div>
+  <div><div class="shtop"><div class="grab"></div><button class="shx" onclick="closeSheet()" aria-label="Cerrar">✕</button></div>
+    <div id="detalleBody"></div></div>
 </div>
 <div class="sheet" id="shPick" onclick="if(event.target===this)closeSheet()">
-  <div><div class="grab"></div>
+  <div><div class="shtop"><div class="grab"></div><button class="shx" onclick="closeSheet()" aria-label="Cerrar">✕</button></div>
     <h3 id="pickTtl">Elegir</h3>
     <div class="srch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
       <input id="pickQ" placeholder="Buscar o escribir nuevo…" oninput="renderPick()"></div>
@@ -620,6 +662,7 @@ function load(){
       // carga única de las distancias del Sheet; después la app es la fuente
       if(!S.distSeedV1){ aplicarSeedDistancias(); S.distSeedV1 = true; S.distDirty = true; save(); }
       if(migrarCategorias()) save();
+      migrarV3();
       return;
     }
   }catch(e){}
@@ -643,6 +686,28 @@ function load(){
   S.dosisMem = reconstruirDosisMem();
   aplicarSeedDistancias();
   save();
+  migrarV3();
+}
+// migraciones de octubre 2026 (corren una sola vez)
+function migrarV3(){
+  let cambio=false;
+  if(!S.pagosAy){ S.pagosAy=[]; cambio=true; }
+  if(!S.borrados){ S.borrados={trabajos:[], gastos:[]}; cambio=true; }
+  // 1) las versiones anteriores no mandaban a la planilla los cambios de facturado/cobrado:
+  //    se reenvían una vez todos los trabajos que ya habían salido desde la app
+  //    (sync===1 son los históricos de AppSheet, esos no viven en "Trabajos App")
+  if(!S.migResync1){
+    S.trabajos.forEach(t=>{ if(t.sync && t.sync!==1){ t.sync=null; t.enPlanilla=true; } });
+    S.gastos.forEach(g=>{ if(g.sync) g.enPlanilla=true; });
+    S.migResync1=true; cambio=true;
+  }
+  // 2) la sección Ayudantes arranca en octubre 2026: lo anterior se da por pagado
+  //    (si algo no lo pagaste, se vuelve a pendiente desde la ficha del ayudante)
+  if(!S.ayInit){
+    S.trabajos.forEach(t=>{ if(t.ay && t.fecha<'2026-10-01' && !t.ayPagado) t.ayPagado='antes'; });
+    S.ayInit=true; cambio=true;
+  }
+  if(cambio) save();
 }
 function save(){ try{ localStorage.setItem(K, JSON.stringify(S)); }catch(e){ toast('Sin espacio para guardar','err'); } }
 function uid(){ return Math.random().toString(36).slice(2,10); }
@@ -653,11 +718,11 @@ function uid(){ return Math.random().toString(36).slice(2,10); }
    restauramos, sin necesidad de apretar "Guardar trabajo" (así el cronómetro sigue corriendo). */
 var KD = 'droneApp_draft_v1';
 var DRAFT_INPUTS = ['fHa','fPrecio','fCaldo','fMaxTanque','fHasTancada','fViento','fHoras','fKm',
-                    'fAncho','fVelocidad','fGota',
+                    'fAncho','fVelocidad','fGota','fOT',
                     'sProdNombre','sProdDosis','sCantTotal'];
 var _draftListo = false;   // se arma recién después de restaurar, para no pisar un borrador bueno
 function draftVacio(){
-  if(F.tipo||F.cliente||F.est||F.lote||F.persona) return false;
+  if(F.tipo||F.cliente||F.est||F.lote||F.persona||F.sigue) return false;
   if((F.prods||[]).some(p=>p&&p.n) || (F.adys||[]).some(p=>p&&p.n)) return false;
   return !DRAFT_INPUTS.some(id=>{ const el=$(id); return el && String(el.value).trim(); });
 }
@@ -748,7 +813,32 @@ function nombreMezcla(prods,adys){
   if(it.length<=3) return it.map(p=>p.n).join(' + ');
   return it.slice(0,3).map(p=>p.n).join(' + ')+' +'+(it.length-3);
 }
-function closeSheet(){ document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('on')); }
+function closeSheet(){
+  document.querySelectorAll('.sheet').forEach(s=>{
+    s.classList.remove('on');
+    const p=s.firstElementChild; if(p){ p.style.transform=''; p.style.transition=''; }
+  });
+}
+// arrastrar la ficha hacia abajo (desde arriba de todo) la cierra
+function initSwipeSheets(){
+  document.querySelectorAll('.sheet>div').forEach(p=>{
+    let y0=null, dy=0;
+    p.addEventListener('touchstart', e=>{
+      y0 = p.scrollTop<=0 ? e.touches[0].clientY : null; dy=0;
+    }, {passive:true});
+    p.addEventListener('touchmove', e=>{
+      if(y0===null) return;
+      dy = e.touches[0].clientY - y0;
+      if(dy>0){ p.style.transition='none'; p.style.transform=`translateY(${dy}px)`; }
+    }, {passive:true});
+    p.addEventListener('touchend', ()=>{
+      if(y0===null) return;
+      p.style.transition='transform .18s';
+      if(dy>90) closeSheet(); else p.style.transform='';
+      y0=null; dy=0;
+    });
+  });
+}
 
 /* ====== unidad de cada producto: litros o kilos ====== */
 var SOLIDOS = ['Sembrar','Fertilizar','Cebo'];
@@ -773,10 +863,23 @@ function cantidadTotal(dosis, ha, unidad){
   return {v:q, u:unidad};
 }
 
+/* ====== listas de clientes en parámetros (uso propio, clientes con OT) ====== */
+function listaParam(s){ return String(s||'').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean); }
+function esPropio(cli){ return !!cli && listaParam(params().propios).includes(String(cli).trim().toLowerCase()); }
+// el cliente trabaja con OT: está en la lista de parámetros o ya le cargaste alguna OT antes
+function usaOT(cli){
+  if(!cli) return false;
+  const c = String(cli).toLowerCase();
+  if(listaParam(params().clientesOT).some(x=>c.includes(x))) return true;
+  return S.trabajos.some(t=>t.cliente===cli && t.ot);
+}
+// la OT se guarda solo con el número: "OT - 451", "ot451" y "451" quedan "451"
+function normOT(v){ return String(v||'').trim().replace(/^o\.?\s*t\.?\s*[-:#nº°]*\s*/i,'').trim(); }
+
 /* ================= ESTADO FORM ================= */
 var F = {};
 function resetF(){ F = { fecha:hoyISO(), tipo:null, cliente:null, est:null, lote:null,
-  prods:[], adys:[], persona:null, precioManual:false, editId:null,
+  prods:[], adys:[], persona:null, precioManual:false, editId:null, sigue:false,
   agua:null, tancadas:null, maxTanque:null, cantManual:false, tancManual:false, kmManual:false }; }
 
 // fumigar es el único flujo "complejo" (mezcla, caldo, agua, tancadas)
@@ -805,6 +908,7 @@ function editarTrabajo(id){
   F.prods = (t.prods||[]).map(p=>({...p}));
   F.adys  = (t.adys||[]).map(p=>({n:p.n, d:p.d, u:'ha'}));
   F.persona = t.ay||null; F.precioManual = true;
+  F.sigue = !!t.sigue;
   F.agua = t.agua!==undefined?t.agua:null;
   F.tancadas = t.tancadas!==undefined?t.tancadas:null;
   F.maxTanque = t.maxTanque!==undefined?t.maxTanque:null;
@@ -814,6 +918,7 @@ function editarTrabajo(id){
   $('fMaxTanque').value=dec(t.maxTanque);
   $('fKm').value=dec(t.km); F.kmManual = t.km!=null;
   $('fAncho').value=dec(t.ancho); $('fVelocidad').value=dec(t.vel); $('fGota').value=dec(t.gota);
+  $('fOT').value = t.ot||'';
   // reconstruir el nº de ha por tancada desde lo guardado
   if(t.tancadas && t.ha) $('fHasTancada').value = dec(+(t.ha/t.tancadas).toFixed(2)); else $('fHasTancada').value='';
   // campos del flujo simple
@@ -846,6 +951,7 @@ function cancelarEdicion(){
 /* ================= NAVEGACIÓN ================= */
 var TTL = {nuevo:'Nuevo trabajo', hist:'Historial', gastos:'Gastos', num:'Números'};
 function go(v){
+  closeSheet();
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
   $('v-'+v).classList.add('on');
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
@@ -858,12 +964,49 @@ function go(v){
 }
 
 /* ================= FECHA ================= */
-function setFecha(d){ F.fecha = hoyISO(d); $('fFecha').value = F.fecha; renderFechaChips(); }
+function setFecha(d){ F.fecha = hoyISO(d); $('fFecha').value = F.fecha; renderFechaChips(); calcAll(); }
 function renderFechaChips(){
   F.fecha = $('fFecha').value || hoyISO();
   $('chHoy').classList.toggle('on', F.fecha===hoyISO());
   $('chAyer').classList.toggle('on', F.fecha===hoyISO(-1));
 }
+
+/* ====== SIGO DEL DÍA ANTERIOR: viajes de 2 días con acampe ======
+   Marca el trabajo como continuación: no se anota distancia (no hubo viaje ese día).
+   Si todavía no elegiste cliente, trae lo del último trabajo: cliente, establecimiento,
+   tipo, mezcla, caldo, ancho/velocidad, precio, ayudante y OT. El lote lo elegís vos. */
+function ultimoTrabajo(){
+  let u=null;
+  S.trabajos.forEach(t=>{ if(!u || t.fecha>=u.fecha) u=t; });
+  return u;
+}
+function cargarDesde(u){
+  F.tipo=u.tipo||null; F.cliente=u.cliente||null; F.est=u.est||null; F.lote=null;
+  F.prods=(u.prods||[]).map(p=>({n:p.n,d:p.d}));
+  F.adys=(u.adys||[]).map(p=>({n:p.n,d:p.d,u:'ha'}));
+  F.persona=u.ay||null; F.precioManual=true;
+  $('fPrecio').value=dec(u.precio); $('fCaldo').value=dec(u.caldo); $('fMaxTanque').value=dec(u.maxTanque);
+  $('fAncho').value=dec(u.ancho); $('fVelocidad').value=dec(u.vel); $('fGota').value=dec(u.gota);
+  $('fOT').value=u.ot||'';
+  if(TIPOS_SIMPLES.includes(u.tipo) && u.prods && u.prods[0]){
+    $('sProdNombre').value=u.prods[0].n; $('sProdDosis').value=dec(u.prods[0].d);
+    $('sCantTotal').value=''; F.cantManual=false;
+  }
+}
+function toggleSigue(){
+  F.sigue = !F.sigue;
+  if(F.sigue){
+    if(!F.cliente && !F.editId){
+      const u = ultimoTrabajo();
+      if(u){ cargarDesde(u); toast(`Seguís con ${u.cliente}${u.est?' · '+u.est:''} — elegí el lote`); }
+    }
+    $('fKm').value=''; F.kmManual=false;
+  } else if(F.cliente && F.est){
+    const km=S.distancias[F.cliente+'|'+F.est]; $('fKm').value = km!=null?dec(km):'';
+  }
+  renderAll();
+}
+function renderSigue(){ $('chSigue').classList.toggle('on', !!F.sigue); }
 
 /* ================= TIPO ================= */
 function renderTipos(){
@@ -941,8 +1084,21 @@ function pickCliente(c){
     const ests = Object.keys(S.jer[c]||{});
     if(ests.length===1) F.est = ests[0];
   }
+  $('fOT').value='';           // la OT es de cada cliente: al cambiar, se vacía
   precargarFumiParams(true);   // trae el ancho/velocidad/gota que sueles usar con este cliente
-  renderClientes(); renderEst(); renderLote(); sugerirPrecio(); calcAll();
+  renderClientes(); renderOT(); renderEst(); renderLote(); sugerirPrecio(); calcAll();
+}
+// casilla de la OT: aparece al elegir cliente, resaltada si ese cliente trabaja con OT
+function renderOT(){
+  const box=$('boxOT'); if(!box) return;
+  if(!F.cliente){ box.style.display='none'; return; }
+  box.style.display='block';
+  const usa = usaOT(F.cliente);
+  $('otLbl').style.color = usa ? 'var(--blue)' : '';
+  $('otLbl').textContent = usa ? 'Orden de trabajo (OT) — este cliente usa OT' : 'Orden de trabajo (OT) — opcional';
+  $('fOT').style.borderColor = (usa && !$('fOT').value.trim()) ? '#2f5f8a' : '';
+  const ot = normOT($('fOT').value);
+  $('otHint').textContent = ot ? `Va a quedar como OT ${ot} (sale en la planilla, el PDF y el historial)` : '';
 }
 function renderEst(){
   const box=$('boxEst');
@@ -955,11 +1111,11 @@ function renderEst(){
 }
 function pickEst(e){
   F.est = F.est===e?null:e; F.lote=null;
-  // autocompletar la distancia guardada de ese establecimiento
+  // autocompletar la distancia guardada de ese establecimiento (si no seguís del día anterior)
   if(F.est){
     const km = S.distancias[F.cliente+'|'+F.est];
     F.kmManual = false;
-    $('fKm').value = km!=null ? dec(km) : '';
+    $('fKm').value = (km!=null && !F.sigue) ? dec(km) : '';
   }
   renderEst(); renderLote(); renderKm(); calcAll();
 }
@@ -967,7 +1123,26 @@ function renderKm(){
   const box=$('boxKm');
   if(!box) return;
   box.style.display = (F.cliente && F.est) ? 'block' : 'none';
-  const km = num($('fKm').value);
+  const inp=$('fKm');
+  if(F.sigue){
+    inp.value=''; inp.disabled=true; inp.placeholder='sin viaje';
+    $('kmHint').innerHTML = '⛺ Seguís del día anterior: este trabajo no suma viaje.';
+    return;
+  }
+  // el viaje se cuenta una sola vez por día y campo: si ya hay otro lote de hoy con distancia, este no suma
+  const prev = (F.cliente && F.est) ? viajeYaContado(F.fecha, F.cliente, F.est, F.editId) : null;
+  if(prev){
+    inp.value=''; inp.disabled=true; inp.placeholder='mismo viaje';
+    $('kmHint').innerHTML = `🚗 El viaje de este día ya está contado en ${prev.lote?'el lote '+esc(prev.lote):'otro trabajo'}: este lote no suma viaje.`;
+    return;
+  }
+  if(inp.disabled){                     // se liberó (cambió la fecha o el campo): vuelve la distancia guardada
+    inp.disabled=false;
+    const km=S.distancias[F.cliente+'|'+F.est];
+    if(!inp.value && km!=null && !F.kmManual) inp.value=dec(km);
+  }
+  inp.placeholder='—';
+  const km = num(inp.value);
   if(km){
     const c = costoTraslado(km);
     $('kmHint').innerHTML = `Ida y vuelta ${dec(km*2)} km · costo del viaje <b>$${c.toFixed(2)}</b>`
@@ -1156,6 +1331,7 @@ function calcAll(){
   if(F.tipo && TIPOS_SIMPLES.includes(F.tipo)) calcSimple(ha);
   else calcFumigacion(ha);
   renderKm();
+  renderOT();
   renderSugPrecio();
   saveDraft();
 }
@@ -1344,12 +1520,16 @@ function guardarTrabajo(){
   if(!F.tipo)    return toast('Falta el tipo de trabajo','err');
   if(!F.cliente) return toast('Falta el cliente','err');
   if(!ha)        return toast('Faltan las hectáreas','err');
+  const ot = normOT($('fOT').value);
+  if(!ot && usaOT(F.cliente) &&
+     !confirm(`${F.cliente} trabaja con OT y no cargaste el número. ¿Guardar igual?`)) return;
 
   const simple = TIPOS_SIMPLES.includes(F.tipo);
   const caldoF = simple ? null : num($('fCaldo').value);
   const t = {
     id: uid(), fecha: F.fecha, tipo: F.tipo, cliente: F.cliente,
     est: F.est||'', lote: F.lote||'', ha,
+    ot: ot,
     precio: num($('fPrecio').value),
     viento: simple ? null : num($('fViento').value),
     caldo: caldoF,
@@ -1361,7 +1541,10 @@ function guardarTrabajo(){
     tancadas: simple ? null : F.tancadas,
     maxTanque: simple ? null : F.maxTanque,
     cantTotal: simple ? num($('sCantTotal').value) : null,
-    km: num($('fKm').value),
+    // si seguís del día anterior no hubo viaje: sin distancia, sin costo de viaje
+    // sin viaje si seguís del día anterior o si el viaje de hoy ya está en otro lote de este campo
+    km: (F.sigue || viajeYaContado(F.fecha, F.cliente, F.est, F.editId)) ? null : num($('fKm').value),
+    sigue: !!F.sigue,
     // ancho de labor, velocidad de avance y tamaño de gota (solo fumigación)
     ancho: simple ? null : num($('fAncho').value),
     vel:   simple ? null : num($('fVelocidad').value),
@@ -1374,6 +1557,7 @@ function guardarTrabajo(){
     // conservamos id, estado de cobro y marca de exportación; el resto se reemplaza
     Object.assign(editando, t, {
       id: editando.id, fact: editando.fact, cobr: editando.cobr,
+      fechaCobro: editando.fechaCobro,
       nuevo: editando.nuevo, op: editando.op,
       sync: null,                       // se vuelve a mandar para corregir la planilla
       editado: Date.now()
@@ -1434,15 +1618,16 @@ function guardarTrabajo(){
 }
 function limpiarForm(manual){
   clearDraft();
-  const cli=F.cliente, est=F.est, tipo=F.tipo;
+  const cli=F.cliente, est=F.est, tipo=F.tipo, sigue=F.sigue;
   resetF();
-  if(!manual){ F.cliente=cli; F.est=est; F.tipo=tipo; }  // mismo campo, otro lote
+  // mismo campo, otro lote: se mantienen cliente, establecimiento, tipo, OT y "sigo de ayer"
+  if(!manual){ F.cliente=cli; F.est=est; F.tipo=tipo; F.sigue=sigue; }
   ['fHa','fPrecio','fViento','fHoras','fHasTancada',
    'sProdNombre','sProdDosis','sCantTotal'].forEach(i=>$(i).value='');
   F.agua=null; F.tancadas=null; F.maxTanque=null;
-  if(manual){ $('fCaldo').value=''; $('fMaxTanque').value=''; $('fKm').value='';
+  if(manual){ $('fCaldo').value=''; $('fMaxTanque').value=''; $('fKm').value=''; $('fOT').value='';
     $('fAncho').value=''; $('fVelocidad').value=''; $('fGota').value=''; }
-  else if(F.est){ const km=S.distancias[F.cliente+'|'+F.est]; $('fKm').value = km!=null?dec(km):''; }
+  else if(F.est && !F.sigue){ const km=S.distancias[F.cliente+'|'+F.est]; $('fKm').value = km!=null?dec(km):''; }
   $('fFecha').value = F.fecha;
   renderAll(); renderModoEdicion();
   if(!manual) window.scrollTo(0,0);
@@ -1566,14 +1751,15 @@ function renderHist(){
   if(histFiltro==='cobrar') ts=ts.filter(t=>!t.cobr);
   if(histFiltro==='facturar') ts=ts.filter(t=>!t.fact);
   if(histFiltro==='mes') ts=ts.filter(t=>t.fecha.slice(0,7)===mesAct);
-  if(q) ts=ts.filter(t=>[t.cliente,t.est,t.lote,t.tipo,t.ay,...(t.prods||[]).map(p=>p.n),...(t.adys||[]).map(p=>p.n)]
+  if(q) ts=ts.filter(t=>[t.cliente,t.est,t.lote,t.tipo,t.ay,t.ot?'ot '+t.ot+' ot'+t.ot:'',
+      ...(t.prods||[]).map(p=>p.n),...(t.adys||[]).map(p=>p.n)]
     .join(' ').toLowerCase().includes(q));
   $('histList').innerHTML = ts.slice(0,150).map(t=>{
     const tot = (t.ha&&t.precio)?t.ha*t.precio:null;
     const mix = [...(t.prods||[]),...(t.adys||[])].map(p=>p.n).join(' + ');
     return `<div class="item" onclick="verDetalle('${t.id}')">
       <div class="l"><div class="t1">${esc(t.cliente)} · ${esc(t.tipo)}
-        ${!t.cobr?'<span class="tag no">cobrar</span>':''}${t.nuevo?'<span class="tag si">nuevo</span>':''}</div>
+        ${t.ot?`<span class="tag ot">OT ${esc(t.ot)}</span>`:''}${!t.cobr?'<span class="tag no">cobrar</span>':''}${t.nuevo?'<span class="tag si">nuevo</span>':''}</div>
         <div class="t2">${esc([t.est,t.lote].filter(Boolean).join(' / '))}${mix?' — '+esc(mix):''}</div></div>
       <div class="r"><div class="amt">${fmtHa(t.ha)} ha</div>
         <div class="dt">${fechaCorta(t.fecha)}${tot?' · $'+fmt(tot):''}</div></div></div>`;
@@ -1586,14 +1772,23 @@ function verDetalle(id){
   const t = S.trabajos.find(x=>x.id===id); if(!t)return;
   const tot=(t.ha&&t.precio)?t.ha*t.precio:null;
   const items=[...(t.prods||[]).map(p=>({...p,ady:false})),...(t.adys||[]).map(p=>({...p,ady:true}))];
+  const pendCli = pendientesDe(t.cliente).length;
   $('detalleBody').innerHTML = `
-    <h3>${esc(t.cliente)} · ${esc(t.tipo)}</h3>
+    <h3>${esc(t.cliente)} · ${esc(t.tipo)}${t.ot?` <span class="tag ot" style="font-size:13px">OT ${esc(t.ot)}</span>`:''}</h3>
     <div class="t2" style="color:var(--dim);margin:-10px 0 16px">${t.fecha.split('-').reverse().join('/')}
       ${[t.est,t.lote].filter(Boolean).length?' · '+esc([t.est,t.lote].filter(Boolean).join(' / ')):''}</div>
     <div class="grid2">
       <div class="stat"><div class="v">${fmtHa(t.ha)}</div><div class="k">hectáreas</div></div>
       <div class="stat"><div class="v">${tot?'$'+fmt(tot):'—'}</div><div class="k">total ${t.precio?'· $'+t.precio+'/ha':''}</div></div>
     </div>
+    <div class="row mb">
+      <button class="chip${t.fact?' on':''}" style="justify-content:center" onclick="tog('${t.id}','fact')">
+        ${t.fact?'✓ Facturado':'Facturado'}</button>
+      <button class="chip${t.cobr?' on':''}" style="justify-content:center" onclick="tog('${t.id}','cobr')">
+        ${t.cobr?'✓ Cobrado':'Cobrado'}</button>
+    </div>
+    ${t.cobr&&t.fechaCobro?`<div class="hint" style="margin:-6px 0 12px">Cobrado el ${t.fechaCobro.split('-').reverse().join('/')}</div>`:''}
+    ${pendCli>1?`<button class="btn cobrar sm mb" onclick="abrirCobrar(${esc(JSON.stringify(t.cliente))})">💵 Cobrar todo lo de ${esc(t.cliente)} (${pendCli} pendientes)</button>`:''}
     ${items.length?`<div class="card tight"><div class="lbl">Mezcla</div>${items.map(p=>{
       const un = unidadDe(p.n, t.tipo, p.ady);
       const tot = (p.d&&t.ha) ? cantidadTotal(p.d, t.ha, un) : null;
@@ -1607,27 +1802,32 @@ function verDetalle(id){
       ${t.cantTotal?`<div class="hint">📦 Total usado: ${fmt(t.cantTotal,1)} ${t.prods&&t.prods[0]?unidadDe(t.prods[0].n,t.tipo):''}</div>`:''}
       ${t.tancadas?`<div class="hint">🚁 ${t.tancadas} tancada${t.tancadas===1?'':'s'}${
         t.maxTanque?` de hasta ${dec(t.maxTanque)} L`:''}</div>`:''}</div>`:''}
-    <div class="row mb">
-      <button class="chip${t.fact?' on':''}" style="justify-content:center" onclick="tog('${t.id}','fact')">
-        ${t.fact?'✓ Facturado':'Facturado'}</button>
-      <button class="chip${t.cobr?' on':''}" style="justify-content:center" onclick="tog('${t.id}','cobr')">
-        ${t.cobr?'✓ Cobrado':'Cobrado'}</button>
-    </div>
-    ${[t.viento?'Viento '+t.viento+' km/h':'',
+    ${[t.sigue?'⛺ Siguió del día anterior (sin viaje)':'',
+       t.viento?'Viento '+t.viento+' km/h':'',
        t.ancho!=null?'Ancho '+dec(t.ancho)+' m':'',
        t.vel!=null?'Velocidad '+dec(t.vel)+' km/h':'',
        (t.ancho!=null&&t.vel!=null)?'≈ '+fmt(t.ancho*t.vel/10,1)+' ha/h teóricas':'',
        t.gota!=null?'Gota '+dec(t.gota)+' µm':'',
-       t.horas?t.horas+' h':'',t.ay?'Ayudante: '+t.ay:'']
+       t.horas?t.horas+' h':'',
+       t.ay?`Ayudante: ${t.ay} · US$${fmt(pagoAyDe(t),2)} ${t.ayPagado?(t.ayPagado==='antes'?'(pagado)':'(pagado el '+fechaCorta(t.ayPagado)+')'):'(sin pagar)'}`:'',
+       (!t.km && !t.sigue && t.est && viajeYaContado(t.fecha,t.cliente,t.est,t.id))?'🚗 Mismo viaje que otro lote de ese día':'']
       .filter(Boolean).map(x=>`<div class="hint">${esc(x)}</div>`).join('')}
     <div class="divide"></div>
     <button class="btn sm mb" onclick="editarTrabajo('${t.id}')">✎ Editar este trabajo</button>
     <button class="btn ghost sm mb" onclick="exportarPDF('${t.id}')">📄 Exportar PDF</button>
     <button class="btn ghost sm mb" onclick="repetir('${t.id}')">↻ Repetir como uno nuevo</button>
-    <button class="btn danger sm" onclick="borrarTrabajo('${t.id}')">Borrar</button>`;
+    <button class="btn danger sm mb" onclick="borrarTrabajo('${t.id}')">Borrar</button>
+    <button class="btn ghost" onclick="closeSheet()">Cerrar</button>`;
   $('shDetalle').classList.add('on');
 }
-function tog(id,k){ const t=S.trabajos.find(x=>x.id===id); t[k]=!t[k]; save(); verDetalle(id); renderHist(); }
+// marcar facturado/cobrado: ahora también se manda a la planilla
+function tog(id,k){
+  const t=S.trabajos.find(x=>x.id===id); if(!t) return;
+  t[k]=!t[k];
+  if(k==='cobr') t.fechaCobro = t.cobr ? hoyISO() : '';
+  t.sync=null;
+  save(); verDetalle(id); renderHist(); updateSyncPill(); sincronizar();
+}
 function repetir(id){
   const t=S.trabajos.find(x=>x.id===id);
   resetF();
@@ -1638,6 +1838,7 @@ function repetir(id){
   $('fMaxTanque').value=dec(t.maxTanque); $('fHasTancada').value='';
   $('fKm').value=dec(t.km); F.kmManual=t.km!=null;
   $('fAncho').value=dec(t.ancho); $('fVelocidad').value=dec(t.vel); $('fGota').value=dec(t.gota);
+  $('fOT').value='';            // un trabajo nuevo lleva su propia OT
   $('fFecha').value=F.fecha; $('fViento').value=''; $('fHoras').value='';
   if(TIPOS_SIMPLES.includes(t.tipo) && t.prods && t.prods[0]){
     $('sProdNombre').value=t.prods[0].n; $('sProdDosis').value=dec(t.prods[0].d);
@@ -1648,8 +1849,278 @@ function repetir(id){
 }
 function borrarTrabajo(id){
   if(!confirm('¿Borrar este trabajo?'))return;
+  const t=S.trabajos.find(x=>x.id===id);
+  // si ya estaba en la planilla, se borra también allá en el próximo envío
+  if(t && (t.enPlanilla || (t.sync && t.sync!==1))){ S.borrados=S.borrados||{trabajos:[],gastos:[]}; S.borrados.trabajos.push(id); }
   S.trabajos = S.trabajos.filter(x=>x.id!==id); save(); closeSheet(); renderHist(); updatePend();
+  updateSyncPill(); sincronizar();
   toast('Borrado');
+}
+
+/* ================= COBRAR TODO LO DE UN CLIENTE ================= */
+// lista todos los trabajos sin cobrar del cliente (de cualquier mes), todos marcados;
+// destildás los que no entran en el pago y los marcás cobrados de una.
+var cobrCli=null, cobrSel=new Set();
+function pendientesDe(cli){
+  return S.trabajos.filter(t=>t.cliente===cli && !t.cobr)
+    .sort((a,b)=> a.fecha<b.fecha?-1:(a.fecha>b.fecha?1:0));
+}
+function abrirCobrar(cli){
+  cobrCli=cli;
+  cobrSel=new Set(pendientesDe(cli).map(t=>t.id));
+  renderCobrar();
+  $('shDetalle').classList.add('on');
+  const p=$('shDetalle').firstElementChild; if(p) p.scrollTop=0;
+}
+function cobrTog(id){ if(cobrSel.has(id)) cobrSel.delete(id); else cobrSel.add(id); renderCobrar(); }
+function cobrTodos(si){ cobrSel = si ? new Set(pendientesDe(cobrCli).map(t=>t.id)) : new Set(); renderCobrar(); }
+function renderCobrar(){
+  const ts=pendientesDe(cobrCli);
+  const tot=t=>(t.ha&&t.precio)?t.ha*t.precio:0;
+  const sel=ts.filter(t=>cobrSel.has(t.id));
+  const suma=sel.reduce((a,t)=>a+tot(t),0);
+  const ots=[...new Set(sel.map(t=>t.ot).filter(Boolean))];
+  const n=sel.length;
+  $('detalleBody').innerHTML = `
+    <h3>💵 Cobrar · ${esc(cobrCli)}</h3>
+    <div class="hint" style="margin:-10px 0 12px">Están marcados todos los pendientes. Destildá los que no entran en este pago.</div>
+    ${ts.length?`<div class="row mb">
+      <button class="chip sm" style="justify-content:center" onclick="cobrTodos(true)">Marcar todos</button>
+      <button class="chip sm" style="justify-content:center" onclick="cobrTodos(false)">Ninguno</button></div>`:''}
+    ${ts.map(t=>{
+      const on=cobrSel.has(t.id);
+      return `<div class="item${on?' sel':''}" onclick="cobrTog('${t.id}')">
+        <div class="ck">${on?'✓':''}</div>
+        <div class="l"><div class="t1">${fechaCorta(t.fecha)} · ${esc(t.tipo)}${t.ot?`<span class="tag ot">OT ${esc(t.ot)}</span>`:''}${t.fact?'':'<span class="tag no">sin facturar</span>'}</div>
+          <div class="t2">${esc([t.est,t.lote].filter(Boolean).join(' / ')||'—')}</div></div>
+        <div class="r"><div class="amt">${tot(t)?'$'+fmt(tot(t)):'sin precio'}</div>
+          <div class="dt">${fmtHa(t.ha)} ha</div></div></div>`;
+    }).join('') || '<div class="empty">No hay nada pendiente de cobro</div>'}
+    ${ts.length?`<div class="kv big"><span class="k">${n} trabajo${n===1?'':'s'}${ots.length?' · OT '+esc(ots.join(', ')):''}</span>
+      <span class="v">$${fmt(suma)}</span></div>
+    <button class="btn mb" onclick="marcarSel(true)" ${n?'':'disabled'}>✓ Marcar como cobrados</button>
+    <button class="btn ghost sm mb" onclick="marcarSel(false)" ${n?'':'disabled'}>Solo marcar como facturados</button>`:''}
+    <button class="btn ghost" onclick="closeSheet()">Cerrar</button>`;
+}
+function marcarSel(cobrar){
+  const ts=pendientesDe(cobrCli).filter(t=>cobrSel.has(t.id));
+  if(!ts.length) return;
+  const hoy=hoyISO(); let suma=0;
+  ts.forEach(t=>{
+    t.fact=true;
+    if(cobrar){ t.cobr=true; t.fechaCobro=hoy; }
+    t.sync=null;                           // se manda a la planilla para actualizar la fila
+    suma += (t.ha&&t.precio)?t.ha*t.precio:0;
+  });
+  save(); updateSyncPill(); sincronizar();
+  toast(cobrar ? `${ts.length} trabajo${ts.length===1?'':'s'} cobrado${ts.length===1?'':'s'} · $${fmt(suma)}`
+               : `${ts.length} marcado${ts.length===1?'':'s'} como facturado${ts.length===1?'':'s'}`);
+  if(cobrar) closeSheet(); else renderCobrar();
+  renderHist();
+  if($('v-num').classList.contains('on')) renderNum();
+}
+
+/* ================= AYUDANTES: lo que les debés, pagar y mandarles el detalle ================= */
+// Cada trabajo con ayudante genera un pago: tarifa × ha (plena en siembra/fertilización,
+// la mitad en fumigación, cebo y relevamiento). Al pagar, el monto queda fijo en el trabajo
+// (t.ayMonto) y se marca la fecha (t.ayPagado). Los pagos quedan en S.pagosAy.
+var ayNom=null, aySel=new Set(), ayVerPagados=false;
+function trabajosAy(nombre, pagados){
+  return S.trabajos.filter(t=>t.ay===nombre && t.ha && (pagados ? !!t.ayPagado : !t.ayPagado))
+    .sort((a,b)=> a.fecha<b.fecha?-1:(a.fecha>b.fecha?1:0));
+}
+function renderAyud(){
+  const cont=$('numAyud'); if(!cont) return;
+  const res={};
+  S.trabajos.forEach(t=>{
+    if(!t.ay || !t.ha) return;
+    const r = res[t.ay] || (res[t.ay]={n:0, ha:0, $:0, total:0});
+    r.total++;
+    if(!t.ayPagado){ r.n++; r.ha+=t.ha; r.$+=pagoAyDe(t); }
+  });
+  const ult = n=>{ const ps=(S.pagosAy||[]).filter(p=>p.ay===n); return ps.length?ps[ps.length-1]:null; };
+  const filas = Object.entries(res).sort((a,b)=> (b[1].$-a[1].$) || (b[1].total-a[1].total));
+  cont.innerHTML = filas.map(([n,r])=>{
+    const u = ult(n);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)">
+      <span style="min-width:0"><b>${esc(n)}</b>
+        <span style="display:block;font-size:12px;color:var(--dim)">${r.n?`${r.n} trabajo${r.n===1?'':'s'} · ${fmtHa(r.ha)} ha sin pagar`:'al día'}${u?` · último pago ${fechaCorta(u.fecha)}`:''}</span></span>
+      <span style="display:flex;align-items:center;gap:10px;flex:none">
+        <b style="color:${r.$>0?'var(--warn)':'var(--accent)'}">US$${fmt(r.$,2)}</b>
+        <button class="chip sm" style="min-height:36px;padding:6px 12px" onclick="abrirAyud(${esc(JSON.stringify(n))})">${r.n?'Ver / pagar':'Ver'}</button></span></div>`;
+  }).join('') || '<div class="hint">Todavía no hay trabajos con ayudante.</div>';
+  cont.innerHTML += `<div class="hint" style="margin-top:9px">Tarifa: siembra y fertilización US$${dec(params().tarifaAyDef)}/ha, fumigación y cebo la mitad. Se cambia en ⚙ Ajustar parámetros.</div>`;
+}
+function abrirAyud(nombre){
+  ayNom=nombre; ayVerPagados=false;
+  aySel=new Set(trabajosAy(nombre,false).map(t=>t.id));
+  renderAyFicha();
+  $('shDetalle').classList.add('on');
+  const p=$('shDetalle').firstElementChild; if(p) p.scrollTop=0;
+}
+function ayTog(id){ if(aySel.has(id)) aySel.delete(id); else aySel.add(id); renderAyFicha(); }
+function ayTodos(si){ aySel = si ? new Set(trabajosAy(ayNom,false).map(t=>t.id)) : new Set(); renderAyFicha(); }
+function campoDe(t){ return [t.cliente, t.est, t.lote].filter(Boolean).join(' · '); }
+function renderAyFicha(){
+  const ts=trabajosAy(ayNom,false);
+  const sel=ts.filter(t=>aySel.has(t.id));
+  const suma=sel.reduce((a,t)=>a+pagoAyDe(t),0), haSel=sel.reduce((a,t)=>a+t.ha,0);
+  const base=tarifaBaseAy(ayNom);
+  const pagados=trabajosAy(ayNom,true).reverse();
+  const pagos=(S.pagosAy||[]).filter(p=>p.ay===ayNom).slice().reverse();
+  const n=sel.length;
+  $('detalleBody').innerHTML = `
+    <h3>👷 ${esc(ayNom)}</h3>
+    <div class="hint" style="margin:-10px 0 12px">Siembra y fertilización US$${dec(base)}/ha · fumigación y cebo US$${dec(base/2)}/ha</div>
+    ${ts.length?`<div class="row mb">
+      <button class="chip sm" style="justify-content:center" onclick="ayTodos(true)">Marcar todos</button>
+      <button class="chip sm" style="justify-content:center" onclick="ayTodos(false)">Ninguno</button></div>`:''}
+    ${ts.map(t=>{
+      const on=aySel.has(t.id);
+      return `<div class="item${on?' sel':''}" onclick="ayTog('${t.id}')">
+        <div class="ck">${on?'✓':''}</div>
+        <div class="l"><div class="t1">${fechaCorta(t.fecha)} · ${esc(t.tipo)}</div>
+          <div class="t2">${esc(campoDe(t))}</div></div>
+        <div class="r"><div class="amt">US$${fmt(pagoAyDe(t),2)}</div>
+          <div class="dt">${fmtHa(t.ha)} ha × ${dec(tarifaAyudante(t.ay,t.tipo))}</div></div></div>`;
+    }).join('') || '<div class="empty" style="padding:24px">No le debés nada 👍</div>'}
+    ${ts.length?`<div class="kv big"><span class="k">${n} trabajo${n===1?'':'s'} · ${fmtHa(haSel)} ha</span>
+      <span class="v">US$${fmt(suma,2)}</span></div>
+    <div class="row mb">
+      <button class="btn ghost sm" onclick="compartirAyImagen()" ${n?'':'disabled'}>📷 Imagen</button>
+      <button class="btn ghost sm" onclick="exportarAyPDF()" ${n?'':'disabled'}>📄 PDF</button>
+    </div>
+    <button class="btn mb" onclick="pagarAy()" ${n?'':'disabled'}>✓ Marcar como pagado · US$${fmt(suma,2)}</button>`:''}
+    ${pagos.length||pagados.length?`<div class="divide"></div>
+      <button class="lbl" onclick="ayVerPagados=!ayVerPagados;renderAyFicha()"
+        style="width:100%;background:none;border:none;justify-content:space-between;cursor:pointer;margin-bottom:6px">
+        <span>Pagos anteriores</span><span>${ayVerPagados?'▾':'▸'}</span></button>
+      ${ayVerPagados?`
+        ${pagos.map(p=>`<div class="kv"><span class="k">${p.fecha.split('-').reverse().join('/')} · ${p.ids.length} trabajo${p.ids.length===1?'':'s'}</span>
+          <span style="display:flex;align-items:center;gap:8px"><span class="v">US$${fmt(p.monto,2)}</span>
+          <button class="chip sm" style="min-height:32px;padding:4px 10px" onclick="deshacerPagoAy('${p.id}')">Deshacer</button></span></div>`).join('')}
+        ${pagados.filter(t=>t.ayPagado==='antes').length?`<div class="hint" style="margin:10px 0 6px">Trabajos anteriores a octubre 2026, dados por pagados al estrenar esta sección. Si alguno no se lo pagaste, tocá ↩ y vuelve a la lista de pendientes.</div>
+          ${pagados.filter(t=>t.ayPagado==='antes').map(t=>`<div class="kv"><span class="k">${t.fecha.split('-').reverse().join('/')} · ${esc(t.tipo)} · ${esc(t.cliente)} · ${fmtHa(t.ha)} ha</span>
+            <button class="chip sm" style="min-height:32px;padding:4px 10px" onclick="ayPendiente('${t.id}')">↩</button></div>`).join('')}`:''}`:''}`:''}
+    <button class="btn ghost" style="margin-top:12px" onclick="closeSheet()">Cerrar</button>`;
+}
+function pagarAy(){
+  const ts=trabajosAy(ayNom,false).filter(t=>aySel.has(t.id));
+  if(!ts.length) return;
+  const monto=Math.round(ts.reduce((a,t)=>a+pagoAyDe(t),0)*100)/100;
+  if(!confirm(`¿Le pagaste US$${fmt(monto,2)} a ${ayNom} por ${ts.length} trabajo${ts.length===1?'':'s'}?`)) return;
+  const pago={id:uid(), ay:ayNom, fecha:hoyISO(), monto, ids:ts.map(t=>t.id)};
+  ts.forEach(t=>{ t.ayMonto=pagoAyDe(t); t.ayPagado=pago.fecha; t.sync=null; });
+  S.pagosAy=S.pagosAy||[]; S.pagosAy.push(pago);
+  save(); updateSyncPill(); sincronizar();
+  toast(`Pago a ${ayNom} registrado · US$${fmt(monto,2)}`);
+  aySel=new Set(); renderAyFicha(); renderAyud();
+}
+function deshacerPagoAy(id){
+  const p=(S.pagosAy||[]).find(x=>x.id===id); if(!p) return;
+  if(!confirm(`¿Deshacer el pago del ${p.fecha.split('-').reverse().join('/')} (US$${fmt(p.monto,2)})? Esos trabajos vuelven a pendientes.`)) return;
+  S.trabajos.forEach(t=>{ if(p.ids.includes(t.id)){ t.ayPagado=null; t.ayMonto=null; t.sync=null; } });
+  S.pagosAy=S.pagosAy.filter(x=>x.id!==id);
+  save(); updateSyncPill(); sincronizar();
+  aySel=new Set(trabajosAy(ayNom,false).map(t=>t.id)); renderAyFicha(); renderAyud();
+}
+function ayPendiente(id){
+  const t=S.trabajos.find(x=>x.id===id); if(!t) return;
+  t.ayPagado=null; t.ayMonto=null; t.sync=null;
+  save(); updateSyncPill();
+  aySel.add(id); renderAyFicha(); renderAyud();
+}
+// datos de la liquidación para el PDF y la imagen
+function liqAy(){
+  const ts=trabajosAy(ayNom,false).filter(t=>aySel.has(t.id));
+  const rows=ts.map(t=>({fecha:t.fecha.split('-').reverse().join('/'), tipo:t.tipo, campo:campoDe(t),
+    ha:t.ha, tar:tarifaAyudante(t.ay,t.tipo), monto:pagoAyDe(t)}));
+  return { nombre:ayNom, rows, totHa:ts.reduce((a,t)=>a+t.ha,0), tot:ts.reduce((a,t)=>a+pagoAyDe(t),0),
+    desde: rows.length?rows[0].fecha:'', hasta: rows.length?rows[rows.length-1].fecha:'',
+    base: tarifaBaseAy(ayNom) };
+}
+function exportarAyPDF(){
+  const L=liqAy(); if(!L.rows.length) return;
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+  <title>Liquidación ${esc(L.nombre)} ${L.desde}-${L.hasta}</title>
+  <style>*{box-sizing:border-box}body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#111;padding:28px;font-size:14px}
+  h1{font-size:21px;margin:0 0 2px}.sub{color:#555;font-size:13px;margin-bottom:18px}
+  table{width:100%;border-collapse:collapse}th,td{padding:7px 5px;border-bottom:1px solid #ddd;text-align:left;font-size:13px}
+  th{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.4px}.n{text-align:right;white-space:nowrap}
+  tfoot td{font-weight:800;font-size:15px;border-top:2px solid #111;border-bottom:none}
+  .nota{color:#666;font-size:12px;margin-top:14px}@media print{body{padding:8px}}</style></head><body>
+  <h1>Liquidación — ${esc(L.nombre)}</h1>
+  <div class="sub">Trabajos del ${L.desde} al ${L.hasta}</div>
+  <table><thead><tr><th>Fecha</th><th>Trabajo</th><th>Campo</th><th class="n">Ha</th><th class="n">US$/ha</th><th class="n">Monto</th></tr></thead>
+  <tbody>${L.rows.map(r=>`<tr><td>${r.fecha}</td><td>${esc(r.tipo)}</td><td>${esc(r.campo)}</td>
+    <td class="n">${fmtHa(r.ha)}</td><td class="n">${dec(r.tar)}</td><td class="n">US$ ${fmt(r.monto,2)}</td></tr>`).join('')}</tbody>
+  <tfoot><tr><td colspan="3">Total · ${L.rows.length} trabajo${L.rows.length===1?'':'s'}</td><td class="n">${fmtHa(L.totHa)}</td><td></td><td class="n">US$ ${fmt(L.tot,2)}</td></tr></tfoot></table>
+  <div class="nota">Siembra y fertilización US$${dec(L.base)}/ha · fumigación y cebo US$${dec(L.base/2)}/ha</div>
+  </body></html>`;
+  const win=window.open('','_blank');
+  if(!win){ toast('Habilitá las ventanas emergentes para exportar el PDF','err'); return; }
+  win.document.open(); win.document.write(html); win.document.close();
+  setTimeout(()=>{ try{ win.focus(); win.print(); }catch(e){} }, 300);
+  toast('Elegí "Guardar en PDF" o compartilo desde el diálogo');
+}
+// imagen (PNG) dibujada en el celular, lista para mandar por WhatsApp
+function imagenAy(){
+  const L=liqAy();
+  const W=1080, pad=56, rowH=86, headH=250, footH=210;
+  const H=headH+rowH*(L.rows.length+1)+footH;
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  const x=c.getContext('2d');
+  const F='-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+  x.fillStyle='#ffffff'; x.fillRect(0,0,W,H);
+  x.fillStyle='#1b3a2b'; x.fillRect(0,0,W,16);
+  x.fillStyle='#111'; x.font=`800 54px ${F}`; x.fillText('Liquidación — '+L.nombre, pad, 104);
+  x.fillStyle='#555'; x.font=`400 32px ${F}`; x.fillText(`Trabajos del ${L.desde} al ${L.hasta}`, pad, 156);
+  // columnas: fecha | trabajo + campo | ha | monto
+  const cF=pad, cT=pad+170, cHa=W-pad-330, cM=W-pad;
+  let y=headH;
+  x.fillStyle='#777'; x.font=`700 24px ${F}`;
+  x.fillText('FECHA',cF,y); x.fillText('TRABAJO · CAMPO',cT,y);
+  x.textAlign='right'; x.fillText('HA',cHa,y); x.fillText('MONTO',cM,y); x.textAlign='left';
+  y+=20; x.fillStyle='#ddd'; x.fillRect(pad,y,W-2*pad,2);
+  const corta=(s,w)=>{ if(x.measureText(s).width<=w) return s; while(s.length>1 && x.measureText(s+'…').width>w) s=s.slice(0,-1); return s+'…'; };
+  L.rows.forEach(r=>{
+    const y1=y+44, y2=y+74;
+    x.fillStyle='#111'; x.font=`600 30px ${F}`; x.fillText(r.fecha.slice(0,5), cF, y1);
+    x.font=`700 30px ${F}`; x.fillText(corta(r.tipo, cHa-cT-150), cT, y1);
+    x.fillStyle='#666'; x.font=`400 24px ${F}`; x.fillText(corta(r.campo, cHa-cT-130), cT, y2);
+    x.textAlign='right'; x.fillStyle='#111'; x.font=`600 30px ${F}`;
+    x.fillText(fmtHa(r.ha), cHa, y1);
+    x.fillStyle='#666'; x.font=`400 22px ${F}`; x.fillText('× '+dec(r.tar), cHa, y2);
+    x.fillStyle='#111'; x.font=`700 30px ${F}`; x.fillText('US$ '+fmt(r.monto,2), cM, y1);
+    x.textAlign='left';
+    y+=rowH; x.fillStyle='#eee'; x.fillRect(pad,y,W-2*pad,2);
+  });
+  y+=70;
+  x.fillStyle='#111'; x.font=`800 40px ${F}`;
+  x.fillText(`Total · ${fmtHa(L.totHa)} ha`, pad, y);
+  x.textAlign='right'; x.fillStyle='#14532d'; x.fillText('US$ '+fmt(L.tot,2), cM, y); x.textAlign='left';
+  x.fillStyle='#777'; x.font=`400 24px ${F}`;
+  x.fillText(`Siembra y fertilización US$${dec(L.base)}/ha · fumigación y cebo US$${dec(L.base/2)}/ha`, pad, y+56);
+  return c;
+}
+function compartirAyImagen(){
+  if(!aySel.size) return;
+  const c=imagenAy();
+  const nombre=`liquidacion_${ayNom}_${hoyISO()}.png`.replace(/\s+/g,'_');
+  c.toBlob(async blob=>{
+    if(!blob) return toast('No se pudo armar la imagen','err');
+    const file=new File([blob], nombre, {type:'image/png'});
+    try{
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title:'Liquidación '+ayNom});
+        return;
+      }
+    }catch(e){ if(e && e.name==='AbortError') return; }
+    // sin "compartir" (ej: computadora): se descarga
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('Imagen descargada');
+  }, 'image/png');
 }
 
 /* ================= GASTOS ================= */
@@ -1686,7 +2157,8 @@ function verGasto(id){
     <div class="lbl">Fecha</div>
     <input type="date" id="egFecha" value="${g.fecha}" class="mb">
     <button class="btn sm mb" onclick="guardarEdicionGasto('${g.id}')">✓ Guardar cambios</button>
-    <button class="btn danger sm" onclick="borrarGasto('${g.id}')">Borrar</button>`;
+    <button class="btn danger sm mb" onclick="borrarGasto('${g.id}')">Borrar</button>
+    <button class="btn ghost" onclick="closeSheet()">Cerrar</button>`;
   $('shDetalle').classList.add('on');
   egEdit = {moneda:g.moneda, cat:g.cat};
 }
@@ -1707,8 +2179,10 @@ function guardarEdicionGasto(id){
 }
 function borrarGasto(id){
   if(!confirm('¿Borrar este gasto?'))return;
+  const g=S.gastos.find(x=>x.id===id);
+  if(g && (g.enPlanilla || g.sync)){ S.borrados=S.borrados||{trabajos:[],gastos:[]}; S.borrados.gastos.push(id); }
   S.gastos = S.gastos.filter(x=>x.id!==id);
-  save(); closeSheet(); renderGastos(); toast('Gasto borrado');
+  save(); closeSheet(); renderGastos(); updateSyncPill(); sincronizar(); toast('Gasto borrado');
 }
 function guardarGasto(){
   const m = num($('gMonto').value);
@@ -1739,7 +2213,7 @@ function reportePDF(t){
     </tr>`;
   }).join('');
   return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
-  <title>Trabajo ${esc(t.cliente)} ${fechaLarga}</title>
+  <title>Trabajo ${esc(t.cliente)}${t.ot?' OT '+esc(t.ot):''} ${fechaLarga}</title>
   <style>
     *{box-sizing:border-box}
     body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#111;padding:28px;font-size:14px;line-height:1.5}
@@ -1755,10 +2229,11 @@ function reportePDF(t){
     footer{margin-top:30px;color:#999;font-size:11px}
     @media print{ body{padding:8px} }
   </style></head><body>
-  <h1>${esc(t.cliente)} — ${esc(t.tipo)}</h1>
+  <h1>${esc(t.cliente)} — ${esc(t.tipo)}${t.ot?' — OT '+esc(t.ot):''}</h1>
   <div class="sub">${fechaLarga}${[t.est,t.lote].filter(Boolean).length?' · '+esc([t.est,t.lote].filter(Boolean).join(' / ')):''}</div>
 
   <div class="grid">
+    ${t.ot?`<div><div class="k">Orden de trabajo</div><div class="v">OT ${esc(t.ot)}</div></div>`:''}
     <div><div class="k">Hectáreas</div><div class="v">${fmtHa(t.ha)} ha</div></div>
     <div><div class="k">Precio</div><div class="v">${t.precio?'$'+dec(t.precio)+'/ha':'—'}</div></div>
     <div><div class="k">Total</div><div class="v">${tot?'$'+fmt(tot):'—'}</div></div>
@@ -1842,12 +2317,17 @@ function renderNum(){
     `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:15px">
       <b>${esc(k)}</b><span style="color:var(--dim)">${fmtHa(v.ha)} ha · $${fmt(v.$)}</span></div>
       <div class="bar"><i style="width:${v.ha/maxT*100}%"></i></div></div>`).join('') || '<div class="hint">Sin datos</div>';
+  // pendiente de cobro: de TODOS los meses (lo que te deben no depende del período elegido)
   const deb={};
-  ts.filter(t=>!t.cobr&&tot(t)>0).forEach(t=>{ deb[t.cliente]=(deb[t.cliente]||0)+tot(t); });
-  $('numCobrar').innerHTML = Object.entries(deb).sort((a,b)=>b[1]-a[1]).map(([k,v])=>
-    `<div style="display:flex;justify-content:space-between;padding:7px 0;font-size:15.5px">
-      <span>${esc(k)}</span><b style="color:var(--warn)">$${fmt(v)}</b></div>`).join('')
+  S.trabajos.filter(t=>!t.cobr&&tot(t)>0).forEach(t=>{
+    deb[t.cliente]=deb[t.cliente]||{$:0,n:0}; deb[t.cliente].$+=tot(t); deb[t.cliente].n++; });
+  $('numCobrar').innerHTML = Object.entries(deb).sort((a,b)=>b[1].$-a[1].$).map(([k,v])=>
+    `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;font-size:15.5px;border-bottom:1px solid var(--line)">
+      <span style="min-width:0">${esc(k)} <span style="font-size:12px;color:var(--dim)">${v.n} trabajo${v.n===1?'':'s'}</span></span>
+      <span style="display:flex;align-items:center;gap:10px;flex:none"><b style="color:var(--warn)">$${fmt(v.$)}</b>
+        <button class="chip sm" style="min-height:36px;padding:6px 12px" onclick="abrirCobrar(${esc(JSON.stringify(k))})">Cobrar…</button></span></div>`).join('')
     || '<div class="hint" style="color:var(--accent)">✓ Todo cobrado</div>';
+  renderAyud();
   const cli={};
   ts.forEach(t=>{ cli[t.cliente]=cli[t.cliente]||{ha:0,$:0}; cli[t.cliente].ha+=t.ha||0; cli[t.cliente].$+=tot(t); });
   $('numClientes').innerHTML = Object.entries(cli).sort((a,b)=>b[1].$-a[1].$).slice(0,12).map(([k,v])=>
@@ -1872,18 +2352,22 @@ function renderNum(){
 }
 
 /* ================= COSTOS Y PRECIO ================= */
-// Modelo de costos: el dron se alquila a un fijo por hectárea (reemplaza amortización
-// y baterías). El pago a ayudantes por hectárea se calcula solo desde los trabajos.
+// Modelo de costos (igual que analisis-costos.gs v3): el dron se alquila a un fijo por
+// hectárea, el pago a ayudantes sale de los trabajos, y tu sueldo pretendido se suma
+// aparte para ver si el negocio te paga tu tiempo. Uso propio (Dubach) se valoriza al costo.
 function paramDef(){
-  return { alquilerHa:1.5, margen:35, tarifas:{}, costoKm:0.28, targetHora:200 };
+  return { alquilerHa:1.5, margen:35, tarifas:{}, tarifaAyDef:1.5, costoKm:0.28, targetHora:200,
+           sueldoAnio:0, fijosMes:0, propios:'Dubach', clientesOT:'Nalmer, Cina Cina' };
 }
 function params(){
   if(!S.param) S.param = paramDef();
-  if(S.param.alquilerHa===undefined) S.param.alquilerHa = 1.5;   // migración desde amortización
-  if(!S.param.tarifas) S.param.tarifas = {};
-  if(S.param.costoKm===undefined) S.param.costoKm = 0.28;        // costo completo por km recorrido
-  if(S.param.targetHora===undefined) S.param.targetHora = 200;   // objetivo de ganancia por hora (USD)
-  return S.param;
+  const p=S.param, d=paramDef();
+  if(p.alquilerHa===undefined) p.alquilerHa = 1.5;   // migración desde amortización
+  if(!p.tarifas) p.tarifas = {};
+  ['tarifaAyDef','costoKm','targetHora','sueldoAnio','fijosMes','propios','clientesOT'].forEach(k=>{
+    if(p[k]===undefined) p[k]=d[k];
+  });
+  return p;
 }
 // costo del viaje de ir y volver, dado los km de ida: km recorridos (×2) × costo por km
 function costoTraslado(km){
@@ -1891,11 +2375,28 @@ function costoTraslado(km){
   if(!km || !p.costoKm) return 0;
   return km*2 * p.costoKm;
 }
+// otro trabajo del mismo día, cliente y establecimiento que ya lleva la distancia (el viaje)
+function viajeYaContado(fecha, cli, est, exceptoId){
+  if(!fecha || !cli || !est) return null;
+  return S.trabajos.find(o=>o.id!==exceptoId && o.fecha===fecha && o.cliente===cli
+    && o.est===est && o.km>0) || null;
+}
 // tarifa efectiva del ayudante según el tipo: plena en siembra/fertilización, la mitad en el resto
+// (fumigación, cebo y relevamiento). Si a un ayudante no le cargaste tarifa propia, usa la base.
 var TIPOS_PLENA = ['Sembrar','Fertilizar'];
+function tarifaBaseAy(nombre){
+  const p=params(), t=p.tarifas[nombre];
+  return (t===undefined || t===null) ? (p.tarifaAyDef||0) : t;
+}
 function tarifaAyudante(nombre, tipo){
-  const base = (params().tarifas[nombre]) || 0;
+  const base = tarifaBaseAy(nombre);
   return TIPOS_PLENA.includes(tipo) ? base : base * 0.5;
+}
+// lo que le toca al ayudante por un trabajo (si ya se pagó, queda fijo el monto pagado)
+function pagoAyDe(t){
+  if(!t.ay || !t.ha) return 0;
+  if(t.ayPagado && t.ayMonto!=null) return t.ayMonto;
+  return Math.round(tarifaAyudante(t.ay, t.tipo)*t.ha*100)/100;
 }
 function toggleParam(){
   const b=$('paramBox');
@@ -1904,42 +2405,53 @@ function toggleParam(){
 }
 function cargarParamInputs(){
   const p=params();
+  $('pSueldo').value=dec(p.sueldoAnio);
   $('pAlquiler').value=dec(p.alquilerHa);
+  $('pFijos').value=dec(p.fijosMes);
   $('pMargen').value=dec(p.margen);
+  $('pPropios').value=p.propios||'';
+  $('pClientesOT').value=p.clientesOT||'';
   $('pCostoKm').value=dec(p.costoKm);
   $('pTargetHora').value=dec(p.targetHora);
+  $('pTarifaDef').value=dec(p.tarifaAyDef);
   // una fila de tarifa por cada persona conocida
   $('pTarifas').innerHTML = S.personas.map(n=>
     `<div class="kv"><span class="k">${esc(n)}</span>
       <span style="display:flex;align-items:center;gap:6px">
         <input type="text" inputmode="decimal" style="width:80px;text-align:right"
-               value="${dec(p.tarifas[n]||0)}"
+               value="${dec(tarifaBaseAy(n))}"
                oninput="setTarifa(${esc(JSON.stringify(n))}, this.value)">
         <span style="font-size:12px;color:var(--dim)">USD/ha</span></span></div>`).join('')
     || '<div class="hint">Todavía no hay ayudantes cargados</div>';
 }
 function setTarifa(nombre, v){
-  const p=params(); p.tarifas[nombre] = num(v)||0; save(); renderCostos();
+  const p=params(); p.tarifas[nombre] = num(v)||0; save(); renderCostos(); renderAyud();
 }
 function guardarParam(){
   const p=params();
+  p.sueldoAnio=num($('pSueldo').value)||0;
   p.alquilerHa=num($('pAlquiler').value)||0;
+  p.fijosMes=num($('pFijos').value)||0;
   p.margen=num($('pMargen').value)||0;
+  p.propios=$('pPropios').value;
+  p.clientesOT=$('pClientesOT').value;
   p.costoKm=num($('pCostoKm').value)||0;
   p.targetHora=num($('pTargetHora').value)||200;
-  save(); renderCostos();
+  const td=num($('pTarifaDef').value); p.tarifaAyDef = td==null ? 0 : td;
+  save(); renderCostos(); renderAyud();
 }
 // tabla de traslado por establecimiento: distancia editable, costo del viaje y piso de hectáreas
 var _distKeys = [];
 // subtítulo de una fila: costo del viaje y piso de hectáreas
 function distSub(cli, km, m){
   const costo = costoTraslado(km);
+  if(esPropio(cli)) return `viaje $${costo.toFixed(2)} · uso propio`;
   let precio = 0;
   for(let i=S.trabajos.length-1;i>=0;i--){ const t=S.trabajos[i];
     if(t.cliente===cli && t.precio){ precio=t.precio; break; } }
   const margenHa = precio - (m.costoHa||0);
   const pisoHa = (km>0 && margenHa>0) ? costo/margenHa : null;
-  return `viaje $${costo.toFixed(2)}` + (pisoHa ? ` · piso ${fmtHa(pisoHa)} ha` : (km>0 ? ' · sin precio' : ''));
+  return `viaje $${costo.toFixed(2)}` + (pisoHa ? ` · piso ${fmtHa(pisoHa)} ha` : (km>0 ? (precio?' · margen negativo':' · sin precio') : ''));
 }
 // el bloque de traslado es largo: se pliega/despliega desde su título
 function toggleTraslado(){
@@ -1965,7 +2477,7 @@ function renderTraslado(){
                value="${dec(km)}" oninput="setDistanciaIdx(${i}, this.value)" onchange="sincronizar()">
         <span style="font-size:12px;color:var(--dim)">km</span></span></div>`;
   }).join('')
-    + '<div class="hint" style="margin-top:8px">Editá el km de cada establecimiento acá: se guarda y se manda solo a la planilla. "Piso" = hectáreas <b>del viaje entero</b> para que el <b>margen</b> (precio menos el costo del dron por hectárea) cubra el costo de ir y volver. Es una estimación; el combustible real ya lo contás en Gastos.</div>';
+    + '<div class="hint" style="margin-top:8px">Editá el km de cada establecimiento acá: se guarda y se manda solo a la planilla. "Piso" = hectáreas <b>del viaje entero</b> para que el <b>margen</b> (precio menos tu costo por hectárea con tu sueldo) cubra el costo de ir y volver. Es una estimación; el combustible real ya lo contás en Gastos.</div>';
 }
 // editar el km de un establecimiento desde la lista
 function setDistanciaIdx(i, val){
@@ -1982,17 +2494,21 @@ function modeloCostos(){
 
   // por MES: gastos (USD) y hectáreas. El costo operativo se mide solo en los meses
   // que tienen gastos cargados, así el hueco de meses sin datos no ensucia el número.
-  const gastoMes={}, haMes={}, haAnio={}, ingAnio={}, ayudAnio={};
+  const gastoMes={}, haMes={}, haAnio={}, ingAnio={}, haFactAnio={}, haPropAnio={}, ayudAnio={}, mesesAnio={};
+  const marcaMes = (mes)=>{ const a=mes.slice(0,4); (mesesAnio[a]=mesesAnio[a]||{})[mes]=1; };
   S.gastos.forEach(g=>{
     const mes=g.fecha.slice(0,7);
     const usd = g.moneda==='USD' ? g.monto : g.monto/(S.tipoCambio||42);
     gastoMes[mes]=(gastoMes[mes]||0)+usd;
+    marcaMes(mes);
   });
   S.trabajos.forEach(t=>{
-    const mes=t.fecha.slice(0,7), a=t.fecha.slice(0,4);
-    haMes[mes]=(haMes[mes]||0)+(t.ha||0);
-    haAnio[a]=(haAnio[a]||0)+(t.ha||0);
-    ingAnio[a]=(ingAnio[a]||0)+((t.ha&&t.precio)?t.ha*t.precio:0);
+    const mes=t.fecha.slice(0,7), a=t.fecha.slice(0,4), ha=t.ha||0;
+    haMes[mes]=(haMes[mes]||0)+ha;
+    haAnio[a]=(haAnio[a]||0)+ha;
+    marcaMes(mes);
+    if(esPropio(t.cliente)) haPropAnio[a]=(haPropAnio[a]||0)+ha;      // uso propio: no se cobra
+    else if(t.ha && t.precio){ ingAnio[a]=(ingAnio[a]||0)+t.ha*t.precio; haFactAnio[a]=(haFactAnio[a]||0)+t.ha; }
     const tar = t.ay ? tarifaAyudante(t.ay, t.tipo) : 0;   // plena en siembra/fert, mitad en el resto
     if(tar && t.ha) ayudAnio[a]=(ayudAnio[a]||0)+tar*t.ha;
   });
@@ -2004,23 +2520,49 @@ function modeloCostos(){
   // costo operativo por hectárea: solo sobre esos meses
   const operHa = haMedida>0 ? gastoMedido/haMedida : null;
 
-  const anioRef = mesesMedidos.length ? mesesMedidos[mesesMedidos.length-1].slice(0,4) : null;
+  const aniosTrab = Object.keys(haAnio).sort();
+  const anioAct = aniosTrab[aniosTrab.length-1] || null;
+  // año de referencia: el último con gastos; si no hay gastos, el último con trabajos
+  const anioRef = mesesMedidos.length ? mesesMedidos[mesesMedidos.length-1].slice(0,4) : anioAct;
+  const haRef = anioRef ? (haAnio[anioRef]||0) : 0;
+  // meses de calendario del año de referencia: tu sueldo y los fijos corren aunque no trabajes
+  let mesesCal = 0;
+  if(anioRef){
+    const ks = Object.keys(mesesAnio[anioRef]||{}).sort();
+    const primer = ks.length ? +ks[0].slice(5,7) : 1;
+    const hoy = new Date();
+    const ultimo = (+anioRef===hoy.getFullYear()) ? hoy.getMonth()+1 : 12;
+    mesesCal = Math.max(1, ultimo-primer+1);
+  }
   // pago a ayudantes: promedio del año de referencia (es una tarifa conocida)
-  const ayudHa = (anioRef && haAnio[anioRef]) ? (ayudAnio[anioRef]||0)/haAnio[anioRef] : 0;
+  const ayudHa = haRef ? (ayudAnio[anioRef]||0)/haRef : 0;
+  const fijosRef  = (p.fijosMes||0) * mesesCal;
+  const sueldoRef = (p.sueldoAnio||0) * mesesCal / 12;
+  const fijosHa  = haRef ? fijosRef/haRef : 0;
+  const sueldoHa = haRef ? sueldoRef/haRef : 0;
 
-  const costoHa = (operHa!==null ? operHa : 0) + alquilerHa + ayudHa;
+  // costo del negocio (piso para no perder plata) y costo con tu sueldo (para poner precio)
+  const costoNeg = (operHa!==null ? operHa : 0) + alquilerHa + ayudHa + fijosHa;
+  const costoHa  = costoNeg + sueldoHa;
+  const pesoSueldo = costoHa>0 ? sueldoHa/costoHa : 0;
   const margen = p.margen/100;
   const sugerido = margen<1 ? costoHa/(1-margen) : null;
 
-  // precio promedio del último año con trabajos
-  const aniosTrab = Object.keys(haAnio).sort();
-  const anioAct = aniosTrab[aniosTrab.length-1];
-  const precioProm = (anioAct && haAnio[anioAct]) ? ingAnio[anioAct]/haAnio[anioAct] : null;
+  // precio promedio cobrado: solo hectáreas con precio (sin uso propio ni trabajos sin precio)
+  const precioProm = (anioAct && haFactAnio[anioAct]) ? ingAnio[anioAct]/haFactAnio[anioAct] : null;
 
-  return { alquilerHa, ayudHa, operHa, costoHa, sugerido, margen,
-           anioRef, anioAct, precioProm, hayGastos: mesesMedidos.length>0,
-           haAnioRef: anioRef?haAnio[anioRef]:0, gastoRef: gastoMedido,
-           ayudRef: anioRef?(ayudAnio[anioRef]||0):0,
+  // resultado del año de referencia, por modelo (hectáreas × costo por hectárea)
+  const ingRef = anioRef ? (ingAnio[anioRef]||0) : 0;
+  const haPropRef = anioRef ? (haPropAnio[anioRef]||0) : 0;
+  const propioRef = haPropRef * costoHa;          // uso propio al costo: ni gana ni pierde
+  const costoNegRef = haRef * costoNeg;
+  const paraVos = ingRef + propioRef - costoNegRef;
+  const resultado = paraVos - sueldoRef;
+
+  return { alquilerHa, ayudHa, operHa, fijosHa, sueldoHa, costoNeg, costoHa, pesoSueldo,
+           sugerido, margen, anioRef, anioAct, precioProm, hayGastos: mesesMedidos.length>0,
+           haRef, gastoRef: gastoMedido, mesesCal, sueldoRef, ingRef, haPropRef, propioRef,
+           costoNegRef, paraVos, resultado, sueldoAnio: p.sueldoAnio||0,
            mesesMedidos, haMedida, nMeses: mesesMedidos.length };
 }
 // nombres cortos de mes para mostrar
@@ -2032,8 +2574,8 @@ function renderCostos(){
 
   if(!m.hayGastos){
     av.innerHTML = `<div class="aviso rojo">Todavía no cargaste gastos en la app, así que
-      el costo de abajo es solo el alquiler del dron y los ayudantes. Te va a dar un precio
-      sugerido más bajo del que necesitás.</div>`;
+      el costo de abajo es solo el alquiler del dron, los ayudantes y tu sueldo. Te va a dar un
+      precio sugerido más bajo del que necesitás.</div>`;
   } else {
     // en qué meses se basa el costo operativo
     const lista = m.mesesMedidos.map(mesCorto).join(', ');
@@ -2044,28 +2586,53 @@ function renderCostos(){
   }
 
   const fila=(k,v,cls)=>`<div class="kv ${cls||''}"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+  const pct = x=>Math.round(x*100)+'%';
   let html='';
   html += fila('Costo operativo', m.operHa!==null
     ? `$${m.operHa.toFixed(2)}/ha` : 'sin gastos cargados');
   html += fila('Alquiler del dron', `$${m.alquilerHa.toFixed(2)}/ha`);
   if(m.ayudHa>0) html += fila('Pago a ayudantes', `$${m.ayudHa.toFixed(2)}/ha`);
-  html += fila('Tu costo', `$${m.costoHa.toFixed(2)}/ha`, 'big');
+  if(m.fijosHa>0) html += fila('Fijos extra', `$${m.fijosHa.toFixed(2)}/ha`);
+  html += fila('= Costo del negocio <span style="font-weight:500;color:var(--dim)">(sin tu sueldo)</span>',
+    `$${m.costoNeg.toFixed(2)}/ha`, 'big');
+  html += m.sueldoAnio>0
+    ? fila(`+ Tu sueldo <span style="font-size:12px">(pesa el ${pct(m.pesoSueldo)} del costo)</span>`, `$${m.sueldoHa.toFixed(2)}/ha`)
+    : fila('+ Tu sueldo', 'sin cargar', 'warn');
+  html += fila('= Costo con tu sueldo', `$${m.costoHa.toFixed(2)}/ha`, 'big');
   if(m.sugerido) html += fila(`Precio para ganar ${Math.round(m.margen*100)}%`,
     `$${m.sugerido.toFixed(2)}/ha`, 'big good');
   if(m.precioProm!==null){
-    const est = m.precioProm >= (m.sugerido||0) ? 'good'
-              : (m.precioProm >= m.costoHa ? 'warn' : 'bad');
-    html += fila(`Lo que cobrás hoy (${m.anioAct})`, `$${m.precioProm.toFixed(2)}/ha`, est);
-    const dif = m.precioProm - m.costoHa;
-    html += `<div class="hint" style="margin-top:9px">${
-      dif < 0 ? '⚠ Estás cobrando por debajo de tu costo.'
-      : (m.precioProm < (m.sugerido||0)
-         ? `Ganás $${dif.toFixed(2)}/ha, pero para llegar al ${Math.round(m.margen*100)}% te faltan $${((m.sugerido||0)-m.precioProm).toFixed(2)}/ha.`
-         : `Estás $${(m.precioProm-(m.sugerido||0)).toFixed(2)}/ha por encima de tu objetivo.`)}</div>`;
+    const p = m.precioProm, sug = m.sugerido||0;
+    const est = p < m.costoNeg ? 'bad' : (p < sug ? 'warn' : 'good');
+    html += fila(`Lo que cobrás hoy (${m.anioAct})`, `$${p.toFixed(2)}/ha`, est);
+    const msg = p < m.costoNeg ? '⚠ Estás cobrando por debajo del costo del negocio: pierde plata.'
+      : (p < m.costoHa ? `El negocio se sostiene, pero no llega a pagarte tu sueldo: te faltan $${(m.costoHa-p).toFixed(2)}/ha.`
+      : (p < sug ? `Te paga tu sueldo, pero para llegar al ${Math.round(m.margen*100)}% te faltan $${(sug-p).toFixed(2)}/ha.`
+      : `Estás $${(p-sug).toFixed(2)}/ha por encima de tu objetivo.`));
+    html += `<div class="hint" style="margin-top:9px">${msg} <span style="opacity:.75">(Promedio de las hectáreas con precio, sin uso propio.)</span></div>`;
+  }
+
+  // cómo te fue: ¿el negocio te paga tu tiempo?
+  if(m.haRef>0){
+    html += `<div class="divide"></div><div class="lbl">Cómo te fue en ${m.anioRef} <span style="text-transform:none;font-weight:600">(${m.mesesCal} mes${m.mesesCal===1?'':'es'})</span></div>`;
+    html += fila('Ingreso de clientes', '$'+fmt(m.ingRef));
+    if(m.haPropRef>0) html += fila(`+ Uso propio al costo <span style="font-size:12px">(${fmtHa(m.haPropRef)} ha)</span>`, '$'+fmt(m.propioRef), 'gris');
+    html += fila('− Costo del negocio', '−$'+fmt(m.costoNegRef));
+    html += fila('= Lo que te queda para vos', (m.paraVos<0?'−$':'$')+fmt(Math.abs(m.paraVos)), 'big '+(m.paraVos>=0?'good':'bad'));
+    if(m.sueldoAnio>0){
+      const cubre = m.sueldoRef>0 ? Math.round(m.paraVos/m.sueldoRef*100) : 0;
+      html += fila(`Tu sueldo de esos meses`, '$'+fmt(m.sueldoRef));
+      const ver = m.paraVos<=0 ? '⚠ El negocio pierde plata aunque no te pagues nada.'
+        : (m.resultado<0 ? `El negocio se sostiene, pero te paga el ${cubre}% de tu sueldo: el resto lo ponés vos con tu tiempo.`
+        : `Te paga tu sueldo y sobran $${fmt(m.resultado)}.`);
+      html += `<div class="hint" style="margin-top:9px">${ver}</div>`;
+    } else {
+      html += `<div class="hint" style="margin-top:9px">Cargá tu sueldo pretendido en ⚙ Ajustar parámetros para ver si el negocio te paga tu tiempo.</div>`;
+    }
   }
   $('costoResumen').innerHTML = html;
 
-  // margen por cliente
+  // margen por cliente (sobre el costo con tu sueldo)
   const cli={};
   S.trabajos.forEach(t=>{
     if(!t.cliente) return;
@@ -2074,18 +2641,21 @@ function renderCostos(){
     if(t.ha && t.precio) c.ing += t.ha*t.precio; else c.haSinPrecio += t.ha||0;
   });
   const lista = Object.entries(cli).map(([n,c])=>({
-    n, ha:c.ha, haSinPrecio:c.haSinPrecio,
+    n, ha:c.ha, haSinPrecio:c.haSinPrecio, propio: esPropio(n),
     precioHa: c.ha? c.ing/c.ha : 0,
     margenHa: (c.ha? c.ing/c.ha : 0) - m.costoHa
-  })).sort((a,b)=>b.ha-a.ha).slice(0,15);
+  })).sort((a,b)=> (a.propio-b.propio) || (b.ha-a.ha)).slice(0,15);
 
   $('costoClientes').innerHTML = lista.map(c=>{
+    if(c.propio) return `<div class="kv gris"><span class="k">${esc(c.n)}
+      <span style="font-size:11.5px;opacity:.7">${fmtHa(c.ha)} ha</span></span>
+      <span class="v">uso propio · al costo</span></div>`;
     const dudoso = c.haSinPrecio > 0;
     const col = dudoso ? 'var(--warn)' : (c.margenHa>=0?'var(--accent)':'var(--bad)');
     return `<div class="kv"><span class="k">${esc(c.n)}
       <span style="font-size:11.5px;opacity:.7">${fmtHa(c.ha)} ha${
         dudoso?` · ${fmtHa(c.haSinPrecio)} sin precio`:''}</span></span>
-      <span class="v" style="color:${col}">${dudoso?'—':'$'+c.margenHa.toFixed(2)+'/ha'}</span></div>`;
+      <span class="v" style="color:${col}">${dudoso?'—':(c.margenHa<0?'−$':'$')+Math.abs(c.margenHa).toFixed(2)+'/ha'}</span></div>`;
   }).join('') || '<div class="hint">Sin datos</div>';
 }
 
@@ -2093,7 +2663,8 @@ function renderCostos(){
 var sincronizando=false;
 function pendientesSync(){
   if(!S.syncUrl) return [];
-  return [...S.trabajos.filter(t=>!t.sync), ...S.gastos.filter(g=>!g.sync)];
+  const b=S.borrados||{trabajos:[],gastos:[]};
+  return [...S.trabajos.filter(t=>!t.sync), ...S.gastos.filter(g=>!g.sync), ...b.trabajos, ...b.gastos];
 }
 function updateSyncPill(){
   const p=$('syncPill'); if(!p) return;
@@ -2112,20 +2683,31 @@ async function sincronizar(manual){
   const enviarDist = !!S.distDirty;
   try{
     const paquete = {
-      trabajos: S.trabajos.filter(t=>!t.sync),
+      // el pago al ayudante lo calcula la app (la tarifa vive acá) y va en su columna
+      trabajos: S.trabajos.filter(t=>!t.sync).map(t=>({...t, pagoAy: t.ay ? pagoAyDe(t) : null})),
       gastos: S.gastos.filter(g=>!g.sync)
     };
     // las distancias van como { 'Cliente|Establecimiento': km } y el script las actualiza en la hoja Distancias
     if(enviarDist) paquete.distancias = S.distancias;
+    // trabajos y gastos que borraste en la app: el script borra sus filas
+    const bor = S.borrados||{trabajos:[],gastos:[]};
+    if(bor.trabajos.length || bor.gastos.length) paquete.borrados = {trabajos:bor.trabajos.slice(), gastos:bor.gastos.slice()};
     // body como texto plano => pedido simple, sin preflight CORS
     const r = await fetch(S.syncUrl, {method:'POST', body: JSON.stringify(paquete), redirect:'follow'});
     const txt = await r.text();
     let res; try{ res = JSON.parse(txt); }catch(e){ throw new Error('Respuesta inesperada del script'); }
     if(!res.ok) throw new Error(res.error||'El script devolvió un error');
     const ok = new Set([...(res.trabajos||[]), ...(res.gastos||[])]);
-    S.trabajos.forEach(t=>{ if(ok.has(t.id)) t.sync=Date.now(); });
-    S.gastos.forEach(g=>{ if(ok.has(g.id)) g.sync=Date.now(); });
+    S.trabajos.forEach(t=>{ if(ok.has(t.id)){ t.sync=Date.now(); t.enPlanilla=true; } });
+    S.gastos.forEach(g=>{ if(ok.has(g.id)){ g.sync=Date.now(); g.enPlanilla=true; } });
     if(enviarDist) S.distDirty = false;      // ya quedaron en la planilla
+    // borrados confirmados por el script (un script viejo no devuelve "borrados": quedan en cola)
+    if(paquete.borrados && res.borrados){
+      const okT=new Set(res.borrados.trabajos||[]), okG=new Set(res.borrados.gastos||[]);
+      bor.trabajos = bor.trabajos.filter(id=>!okT.has(id));
+      bor.gastos   = bor.gastos.filter(id=>!okG.has(id));
+      S.borrados = bor;
+    }
     S.ultSync = Date.now(); save();
     var msg = ok.size ? `${ok.size} guardado${ok.size===1?'':'s'} en tu planilla` : 'Planilla actualizada';
     if(enviarDist && res.distancias) msg += ` · ${res.distancias} distancia${res.distancias===1?'':'s'}`;
@@ -2197,7 +2779,8 @@ function exportCSV(){
     'Producto 1','Dosis P1','Producto 2','Dosis P2','Producto 3','Dosis P3','Producto 4','Dosis P4',
     'Adyuvante 1','Dosis A1','Adyuvante 2','Dosis A2','Horas','Facturado','Cobrado','Key','Mes','Año','Operador','Ayudante',
     'Agua/ha','Agua total','Tancadas','Tanque L','Cant. total','Km','Gasoil',
-    'Ancho (m)','Velocidad (km/h)','Gota (µm)','Ha/h teórica'];
+    'Ancho (m)','Velocidad (km/h)','Gota (µm)','Ha/h teórica','OT','Sigue día anterior','Fecha cobro',
+    'Pago ayudante (US$)','Ayudante pagado'];
   const nuevos = S.trabajos.filter(t=>t.nuevo);
   const ts = nuevos.length?nuevos:S.trabajos;
   const rows = ts.map(t=>{
@@ -2209,7 +2792,9 @@ function exportCSV(){
       t.id, mesDe(t.fecha), t.fecha.slice(0,4), t.op, t.ay,
       t.agua, (t.agua&&t.ha)?+(t.agua*t.ha).toFixed(1):'', t.tancadas, t.maxTanque, t.cantTotal,
       t.km, t.km?+costoTraslado(t.km).toFixed(2):'',
-      t.ancho, t.vel, t.gota, (t.ancho&&t.vel)?+(t.ancho*t.vel/10).toFixed(2):''].map(csvCell).join(';');
+      t.ancho, t.vel, t.gota, (t.ancho&&t.vel)?+(t.ancho*t.vel/10).toFixed(2):'',
+      t.ot||'', t.sigue?'SI':'', t.fechaCobro?t.fechaCobro.split('-').reverse().join('/'):'',
+      t.ay?pagoAyDe(t):'', t.ayPagado?(t.ayPagado==='antes'?'antes':t.ayPagado.split('-').reverse().join('/')):''].map(csvCell).join(';');
   });
   dl(`trabajos_${hoyISO()}.csv`, [H.join(';'),...rows].join('\n'));
   if(nuevos.length){ nuevos.forEach(t=>t.nuevo=false); save(); updatePend(); }
@@ -2247,7 +2832,7 @@ function borrarTodo(){
 /* ================= INIT ================= */
 function renderAll(){
   $('fFecha').value = F.fecha;
-  renderFechaChips(); renderTipos(); renderClientes(); renderEst(); renderLote();
+  renderFechaChips(); renderSigue(); renderTipos(); renderClientes(); renderOT(); renderEst(); renderLote();
   renderKm();
   renderRecetas(); renderRecetasSimple(); renderSimpleDatalist(); renderDatalists();
   renderProds(); renderPersonas(); renderModoTipo(); calcAll(); renderModoEdicion();
@@ -2258,6 +2843,7 @@ if(!_recuperado) renderAll();
 _draftListo = true;
 updatePend();
 renderCrono();
+initSwipeSheets();
 if(_recuperado) toast('Recuperé lo que estabas cargando');
 pedirPersistencia();
 updateSyncPill(); renderSync(); chequearBackup();
