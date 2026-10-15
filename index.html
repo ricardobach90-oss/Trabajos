@@ -475,6 +475,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
     <input id="qHist" placeholder="Buscar cliente, lote, OT, producto…" oninput="renderHist()">
   </div>
   <div class="chips mb" id="histFiltros"></div>
+  <button class="btn ghost sm mb" onclick="abrirReporte()">📄 Reporte de varios trabajos</button>
   <div id="histList"></div>
 </div></div>
 
@@ -1815,6 +1816,7 @@ function verDetalle(id){
     <div class="divide"></div>
     <button class="btn sm mb" onclick="editarTrabajo('${t.id}')">✎ Editar este trabajo</button>
     <button class="btn ghost sm mb" onclick="exportarPDF('${t.id}')">📄 Exportar PDF</button>
+    <button class="btn ghost sm mb" onclick="abrirReporte(${esc(JSON.stringify(t.cliente))})">📄 Reporte de varios trabajos de ${esc(t.cliente)}</button>
     <button class="btn ghost sm mb" onclick="repetir('${t.id}')">↻ Repetir como uno nuevo</button>
     <button class="btn danger sm mb" onclick="borrarTrabajo('${t.id}')">Borrar</button>
     <button class="btn ghost" onclick="closeSheet()">Cerrar</button>`;
@@ -2273,6 +2275,247 @@ function exportarPDF(id){
     try{ win.focus(); win.print(); }
     catch(e){ toast('No se pudo abrir la impresión','err'); }
   }, 300);
+  toast('Elegí "Guardar en PDF" en el diálogo de impresión');
+}
+
+
+/* ================= REPORTE DE VARIOS TRABAJOS (PDF) =================
+   Se filtran trabajos (cliente, establecimiento, tipo, fechas, estado de cobro), se eligen
+   uno por uno con casillas y se decide qué datos van al reporte. Sale un PDF con un resumen
+   general y el detalle de cada trabajo. Los datos elegidos se recuerdan para la próxima. */
+var REP_CAMPOS = [   // [clave, etiqueta, va por defecto]
+  ['fecha','Fecha',1], ['tipo','Tipo de trabajo',1], ['cliente','Cliente',1],
+  ['campo','Establecimiento / lote',1], ['ot','OT',1], ['ha','Hectáreas',1],
+  ['precio','Precio por ha',1], ['total','Total $',1], ['mezcla','Productos y dosis',1],
+  ['cantidades','Cantidad usada de cada producto',0], ['caldo','Caldo (L/ha)',0],
+  ['viento','Viento',0], ['avg','Ancho · velocidad · gota',0], ['horas','Horas',0],
+  ['ayudante','Ayudante',0], ['estado','Facturado / cobrado',0], ['km','Distancia',0]
+];
+var REP_RESUMEN = [
+  ['rTot','Totales (trabajos, hectáreas, $)',1], ['rTipo','Por tipo de trabajo',1],
+  ['rCampo','Por establecimiento',1], ['rProd','Productos usados (cantidades totales)',1],
+  ['rCobro','Cobrado / pendiente',0], ['rOT','Lista de OT',0]
+];
+var REP_PRESETS = {
+  cliente: ['fecha','tipo','campo','ot','ha','precio','total','mezcla','rTot','rTipo','rCampo','rProd','rOT','secRes','secDet'],
+  interno: REP_CAMPOS.map(c=>c[0]).concat(REP_RESUMEN.map(c=>c[0])).concat(['secRes','secDet'])
+};
+var REP = null;
+function repCampos(){
+  if(!S.repCampos){
+    S.repCampos={};
+    REP_CAMPOS.concat(REP_RESUMEN).forEach(c=>{ S.repCampos[c[0]]=!!c[2]; });
+    S.repCampos.secRes=true; S.repCampos.secDet=true;
+  }
+  return S.repCampos;
+}
+function abrirReporte(cli){
+  repCampos();
+  REP = { cli: cli||'', est:'', tipos:[], desde:'', hasta:'', estado:'todos', excl:{}, titulo:'', verCampos:false };
+  renderReporte();
+  $('shDetalle').classList.add('on');
+  const p=$('shDetalle').firstElementChild; if(p) p.scrollTop=0;
+}
+function repTrabajos(){
+  return S.trabajos.filter(t=>{
+    if(REP.cli && t.cliente!==REP.cli) return false;
+    if(REP.est && t.est!==REP.est) return false;
+    if(REP.tipos.length && !REP.tipos.includes(t.tipo)) return false;
+    if(REP.desde && t.fecha<REP.desde) return false;
+    if(REP.hasta && t.fecha>REP.hasta) return false;
+    if(REP.estado==='sincobrar' && t.cobr) return false;
+    if(REP.estado==='sinfacturar' && t.fact) return false;
+    if(REP.estado==='cobrados' && !t.cobr) return false;
+    return true;
+  }).sort((a,b)=> a.fecha<b.fecha?-1:(a.fecha>b.fecha?1:0));
+}
+function repSet(k,v){ REP[k]=v; if(k==='cli') REP.est=''; renderReporte(); }
+function repTipo(t){ const i=REP.tipos.indexOf(t); if(i<0) REP.tipos.push(t); else REP.tipos.splice(i,1); renderReporte(); }
+function repTog(id){ if(REP.excl[id]) delete REP.excl[id]; else REP.excl[id]=1; renderReporte(); }
+function repTodos(si){ if(si) REP.excl={}; else repTrabajos().forEach(t=>REP.excl[t.id]=1); renderReporte(); }
+function repCampo(k){ const c=repCampos(); c[k]=!c[k]; save(); renderReporte(); }
+function repPreset(nombre){
+  const c=repCampos(), on=REP_PRESETS[nombre];
+  Object.keys(c).forEach(k=>c[k]=on.includes(k));
+  save(); renderReporte();
+  toast(nombre==='cliente'?'Datos para mandarle al cliente':'Todos los datos');
+}
+function renderReporte(){
+  const c=repCampos();
+  const ts=repTrabajos(), sel=ts.filter(t=>!REP.excl[t.id]);
+  const tot=t=>(t.ha&&t.precio)?t.ha*t.precio:0;
+  const clientes=[...new Set(S.trabajos.map(t=>t.cliente).filter(Boolean))].sort();
+  const ests=REP.cli?[...new Set(S.trabajos.filter(t=>t.cliente===REP.cli).map(t=>t.est).filter(Boolean))].sort():[];
+  const tipos=[...new Set(S.trabajos.map(t=>t.tipo).filter(Boolean))];
+  const chip=(on,txt,fn)=>`<button class="chip sm${on?' on':''}" onclick="${fn}">${txt}</button>`;
+  const opt=(v,txt,cur)=>`<option value="${esc(v)}"${v===cur?' selected':''}>${esc(txt)}</option>`;
+  const campos=(lista)=>lista.map(x=>chip(c[x[0]], esc(x[1]), `repCampo('${x[0]}')`)).join('');
+  $('detalleBody').innerHTML = `
+    <h3>📄 Reporte de varios trabajos</h3>
+    <div class="lbl">Cliente</div>
+    <select class="mb" onchange="repSet('cli',this.value)">${opt('','Todos los clientes',REP.cli)}${clientes.map(x=>opt(x,x,REP.cli)).join('')}</select>
+    ${ests.length>1?`<div class="lbl">Establecimiento</div>
+    <select class="mb" onchange="repSet('est',this.value)">${opt('','Todos',REP.est)}${ests.map(x=>opt(x,x,REP.est)).join('')}</select>`:''}
+    <div class="lbl">Tipo de trabajo</div>
+    <div class="chips mb">${chip(!REP.tipos.length,'Todos',"REP.tipos=[];renderReporte()")}${tipos.map(t=>chip(REP.tipos.includes(t),esc(t),`repTipo(${esc(JSON.stringify(t))})`)).join('')}</div>
+    <div class="row mb">
+      <div><div class="lbl">Desde</div><input type="date" value="${REP.desde}" onchange="repSet('desde',this.value)"></div>
+      <div><div class="lbl">Hasta</div><input type="date" value="${REP.hasta}" onchange="repSet('hasta',this.value)"></div>
+    </div>
+    <div class="chips mb">
+      ${chip(REP.estado==='todos','Todos',"repSet('estado','todos')")}
+      ${chip(REP.estado==='sincobrar','Sin cobrar',"repSet('estado','sincobrar')")}
+      ${chip(REP.estado==='sinfacturar','Sin facturar',"repSet('estado','sinfacturar')")}
+      ${chip(REP.estado==='cobrados','Cobrados',"repSet('estado','cobrados')")}
+    </div>
+    <div class="divide"></div>
+    <button class="lbl" onclick="REP.verCampos=!REP.verCampos;renderReporte()"
+      style="width:100%;background:none;border:none;justify-content:space-between;cursor:pointer">
+      <span>Qué datos van en el reporte</span><span>${REP.verCampos?'▾':'▸'}</span></button>
+    ${REP.verCampos?`
+      <div class="row mb">
+        <button class="chip sm" style="justify-content:center" onclick="repPreset('cliente')">Para el cliente</button>
+        <button class="chip sm" style="justify-content:center" onclick="repPreset('interno')">Todo (interno)</button>
+      </div>
+      <div class="lbl" style="margin-top:4px">Secciones</div>
+      <div class="chips mb">${chip(c.secRes,'Resumen general',"repCampo('secRes')")}${chip(c.secDet,'Detalle de cada trabajo',"repCampo('secDet')")}</div>
+      ${c.secRes?`<div class="lbl">En el resumen</div><div class="chips mb">${campos(REP_RESUMEN)}</div>`:''}
+      ${c.secDet?`<div class="lbl">En el detalle (columnas)</div><div class="chips mb">${campos(REP_CAMPOS)}</div>`:''}
+      <div class="lbl">Título (opcional)</div>
+      <input class="mb" value="${esc(REP.titulo)}" placeholder="Ej: Trabajos de octubre" oninput="REP.titulo=this.value">
+    `:`<div class="hint" style="margin:-4px 0 10px">Tocá para elegir qué columnas y qué resumen salen. Se recuerda para la próxima.</div>`}
+    <div class="divide"></div>
+    <div class="lbl">Trabajos (${sel.length} de ${ts.length})</div>
+    ${ts.length?`<div class="row mb">
+      <button class="chip sm" style="justify-content:center" onclick="repTodos(true)">Marcar todos</button>
+      <button class="chip sm" style="justify-content:center" onclick="repTodos(false)">Ninguno</button></div>`:''}
+    ${ts.slice().reverse().map(t=>{
+      const on=!REP.excl[t.id];
+      return `<div class="item${on?' sel':''}" onclick="repTog('${t.id}')">
+        <div class="ck">${on?'✓':''}</div>
+        <div class="l"><div class="t1">${fechaCorta(t.fecha)}/${t.fecha.slice(2,4)} · ${esc(t.tipo)}${t.ot?`<span class="tag ot">OT ${esc(t.ot)}</span>`:''}</div>
+          <div class="t2">${esc([t.cliente,t.est,t.lote].filter(Boolean).join(' · '))}</div></div>
+        <div class="r"><div class="amt">${fmtHa(t.ha)} ha</div><div class="dt">${tot(t)?'$'+fmt(tot(t)):''}</div></div></div>`;
+    }).join('') || '<div class="empty" style="padding:24px">No hay trabajos con esos filtros</div>'}
+    ${sel.length?`<div class="kv big"><span class="k">${sel.length} trabajo${sel.length===1?'':'s'} · ${fmtHa(sel.reduce((a,t)=>a+(t.ha||0),0))} ha</span>
+      <span class="v">$${fmt(sel.reduce((a,t)=>a+tot(t),0))}</span></div>`:''}
+    <button class="btn mb" onclick="exportarReporte()" ${sel.length&&(c.secRes||c.secDet)?'':'disabled'}>📄 Exportar PDF</button>
+    <button class="btn ghost" onclick="closeSheet()">Cerrar</button>`;
+}
+// cantidad total de un producto en un trabajo, con su unidad (L, kg, ml o g)
+function cantProd(p, t, ady){
+  if(p.d==null || !t.ha) return null;
+  return cantidadTotal(p.d, t.ha, unidadDe(p.n, t.tipo, ady));
+}
+function fmtCant(q){ return q ? fmt(q.v, q.v<10?2:(q.v<100?1:0))+' '+q.u : '—'; }
+function htmlReporte(){
+  const c=repCampos();
+  const ts=repTrabajos().filter(t=>!REP.excl[t.id]);
+  const tot=t=>(t.ha&&t.precio)?t.ha*t.precio:0;
+  const F=s=>s.split('-').reverse().join('/');
+  const clientes=[...new Set(ts.map(t=>t.cliente))];
+  const unCliente = clientes.length===1;
+  const desde=ts[0].fecha, hasta=ts[ts.length-1].fecha;
+  const titulo = REP.titulo.trim() || ('Reporte de trabajos' + (unCliente ? ' — '+clientes[0] : ''));
+  const totHa=ts.reduce((a,t)=>a+(t.ha||0),0), totPlata=ts.reduce((a,t)=>a+tot(t),0);
+  const tabla=(enc, filas, der)=>`<table><thead><tr>${enc.map((h,i)=>`<th${der&&der[i]?' class="n"':''}>${h}</th>`).join('')}</tr></thead>
+    <tbody>${filas.map(f=>`<tr>${f.map((x,i)=>`<td${der&&der[i]?' class="n"':''}>${x}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  let res='';
+  if(c.secRes){
+    if(c.rTot) res += `<div class="grid">
+      <div><div class="k">Trabajos</div><div class="v">${ts.length}</div></div>
+      <div><div class="k">Hectáreas</div><div class="v">${fmtHa(totHa)} ha</div></div>
+      ${totPlata?`<div><div class="k">Total</div><div class="v">$${fmt(totPlata)}</div></div>
+      <div><div class="k">Precio promedio</div><div class="v">$${fmt(totPlata/(ts.filter(t=>t.precio).reduce((a,t)=>a+(t.ha||0),0)||1),2)}/ha</div></div>`:''}
+    </div>`;
+    const agrupa=(clave)=>{ const g={}; ts.forEach(t=>{ const k=clave(t)||'—'; const x=g[k]||(g[k]={n:0,ha:0,$:0}); x.n++; x.ha+=t.ha||0; x.$+=tot(t); }); return g; };
+    const tablaGrupo=(tit, g)=>`<h2>${tit}</h2>`+tabla([tit.replace('Por ',''),'Trabajos','Hectáreas','Total'],
+      Object.entries(g).sort((a,b)=>b[1].ha-a[1].ha).map(([k,x])=>[esc(k),x.n,fmtHa(x.ha),x.$?'$'+fmt(x.$):'—']),[0,1,1,1]);
+    if(c.rTipo) res += tablaGrupo('Por tipo de trabajo', agrupa(t=>t.tipo));
+    if(c.rCampo) res += tablaGrupo('Por establecimiento', agrupa(t=>(unCliente?'':t.cliente+' · ')+(t.est||'sin establecimiento')));
+    if(c.rProd){
+      const pr={};
+      ts.forEach(t=>[...(t.prods||[]).map(p=>[p,false]),...(t.adys||[]).map(p=>[p,true])].forEach(([p,ady])=>{
+        if(!p.n || p.d==null || !t.ha) return;
+        const u=unidadDe(p.n,t.tipo,ady), k=p.n+'|'+u;
+        const x=pr[k]||(pr[k]={n:p.n,u:u,q:0,ha:0,ady:ady}); x.q+=p.d*t.ha; x.ha+=t.ha;
+      }));
+      const filas=Object.values(pr).sort((a,b)=>a.ady-b.ady || b.q-a.q).map(x=>[esc(x.n)+(x.ady?' <span class="dim">(adyuvante)</span>':''),
+        fmtHa(x.ha)+' ha', fmtCant(x.q<1?{v:x.q*1000,u:x.u==='L'?'ml':'g'}:{v:x.q,u:x.u})]);
+      if(filas.length) res += `<h2>Productos usados</h2>`+tabla(['Producto','Aplicado en','Cantidad total'],filas,[0,1,1]);
+    }
+    if(c.rCobro){
+      const cob=ts.filter(t=>t.cobr).reduce((a,t)=>a+tot(t),0), fac=ts.filter(t=>t.fact&&!t.cobr).reduce((a,t)=>a+tot(t),0);
+      res += `<h2>Cobro</h2>`+tabla(['Estado','Total'],[['Cobrado','$'+fmt(cob)],['Facturado, sin cobrar','$'+fmt(fac)],
+        ['Sin facturar','$'+fmt(totPlata-cob-fac)]],[0,1]);
+    }
+    if(c.rOT){
+      const ots={}; ts.filter(t=>t.ot).forEach(t=>{ const x=ots[t.ot]||(ots[t.ot]={ha:0,$:0,n:0}); x.n++; x.ha+=t.ha||0; x.$+=tot(t); });
+      if(Object.keys(ots).length) res += `<h2>Órdenes de trabajo</h2>`+tabla(['OT','Trabajos','Hectáreas','Total'],
+        Object.entries(ots).map(([k,x])=>['OT '+esc(k),x.n,fmtHa(x.ha),x.$?'$'+fmt(x.$):'—']),[0,1,1,1]);
+    }
+  }
+  // detalle: una fila por trabajo, solo con las columnas elegidas
+  const cols=[];
+  const add=(k,h,fn,der)=>{ if(c[k]) cols.push({h,fn,der}); };
+  add('fecha','Fecha',t=>F(t.fecha));
+  add('tipo','Trabajo',t=>esc(t.tipo));
+  if(!unCliente) add('cliente','Cliente',t=>esc(t.cliente));
+  add('campo','Establecimiento / lote',t=>esc([t.est,t.lote].filter(Boolean).join(' · ')||'—'));
+  add('ot','OT',t=>t.ot?esc(t.ot):'—');
+  add('ha','Ha',t=>fmtHa(t.ha),1);
+  add('precio','$/ha',t=>t.precio?dec(t.precio):'—',1);
+  add('total','Total',t=>tot(t)?'$'+fmt(tot(t)):'—',1);
+  if(c.mezcla || c.cantidades) cols.push({h:'Productos', fn:t=>{
+    const it=[...(t.prods||[]).map(p=>[p,false]),...(t.adys||[]).map(p=>[p,true])].filter(x=>x[0].n);
+    if(!it.length) return '—';
+    return it.map(([p,ady])=>{
+      const u=unidadDe(p.n,t.tipo,ady);
+      let txt='<span class="pr">'+esc(p.n);
+      if(c.mezcla && p.d!=null) txt+=' · '+dec(p.d)+' '+u+'/ha';
+      if(c.cantidades) txt+=' → <b>'+fmtCant(cantProd(p,t,ady))+'</b>';
+      return txt+'</span>';
+    }).join('<br>');
+  }});
+  add('caldo','Caldo',t=>t.caldo?dec(t.caldo)+' L/ha':'—',1);
+  add('viento','Viento',t=>t.viento!=null&&t.viento!==''?dec(t.viento)+' km/h':'—',1);
+  add('avg','Ancho · vel · gota',t=>[t.ancho!=null?dec(t.ancho)+' m':'',t.vel!=null?dec(t.vel)+' km/h':'',t.gota!=null?dec(t.gota)+' µm':''].filter(Boolean).join(' · ')||'—');
+  add('horas','Horas',t=>t.horas?dec(t.horas):'—',1);
+  add('ayudante','Ayudante',t=>esc(t.ay||'—'));
+  add('estado','Estado',t=>t.cobr?'Cobrado':(t.fact?'Facturado':'Pendiente'));
+  add('km','Km',t=>t.km!=null?dec(t.km):(t.sigue||t.est?'—':'—'),1);
+  const det = c.secDet && cols.length ? `<h2>Detalle de los trabajos</h2>
+    <table class="det"><thead><tr>${cols.map(x=>`<th${x.der?' class="n"':''}>${x.h}</th>`).join('')}</tr></thead>
+    <tbody>${ts.map(t=>`<tr>${cols.map(x=>`<td${x.der?' class="n"':''}>${x.fn(t)}</td>`).join('')}</tr>`).join('')}</tbody>
+    ${(c.ha||c.total)?`<tfoot><tr>${cols.map((x,i)=>`<td${x.der?' class="n"':''}>${i===0?'Total':(x.h==='Ha'?fmtHa(totHa):(x.h==='Total'&&totPlata?'$'+fmt(totPlata):''))}</td>`).join('')}</tr></tfoot>`:''}
+    </table>` : '';
+  const ancho = cols.length>7;     // muchas columnas: hoja apaisada
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+  <title>${esc(titulo)} ${F(desde)}-${F(hasta)}</title>
+  <style>*{box-sizing:border-box}body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#111;padding:26px;font-size:13px;line-height:1.45}
+  h1{font-size:21px;margin:0 0 2px}h2{font-size:14px;margin:22px 0 7px;border-bottom:1px solid #ccc;padding-bottom:4px}
+  .sub{color:#555;font-size:13px;margin-bottom:16px}.dim{color:#888;font-size:11px}
+  .grid{display:flex;flex-wrap:wrap;gap:6px 30px;margin:6px 0 4px}.grid .k{color:#666;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  .grid .v{font-size:18px;font-weight:700}
+  table{width:100%;border-collapse:collapse;margin-bottom:6px}th,td{padding:5px 5px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top;font-size:12px}
+  th{font-size:10.5px;color:#666;text-transform:uppercase;letter-spacing:.3px}.n{text-align:right;white-space:nowrap}
+  table.det td{font-size:11.5px}.pr{white-space:nowrap}tfoot td{font-weight:800;border-top:2px solid #111;border-bottom:none}
+  tr{page-break-inside:avoid}footer{margin-top:24px;color:#999;font-size:11px}
+  @page{size:A4 ${ancho?'landscape':'portrait'};margin:12mm}@media print{body{padding:0}}</style></head><body>
+  <h1>${esc(titulo)}</h1>
+  <div class="sub">${unCliente?'':esc(clientes.length+' clientes · ')}Del ${F(desde)} al ${F(hasta)} · ${ts.length} trabajo${ts.length===1?'':'s'}</div>
+  ${res}${det}
+  <footer>Reporte generado el ${new Date().toLocaleDateString('es-UY')}</footer>
+  </body></html>`;
+}
+function exportarReporte(){
+  const ts=repTrabajos().filter(t=>!REP.excl[t.id]);
+  if(!ts.length) return;
+  const html=htmlReporte();
+  const win=window.open('','_blank');
+  if(!win){ toast('Habilitá las ventanas emergentes para exportar el PDF','err'); return; }
+  win.document.open(); win.document.write(html); win.document.close();
+  setTimeout(()=>{ try{ win.focus(); win.print(); }catch(e){} }, 300);
   toast('Elegí "Guardar en PDF" en el diálogo de impresión');
 }
 
