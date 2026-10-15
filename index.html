@@ -184,8 +184,23 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 .shx{width:40px;height:40px;border-radius:99px;background:var(--card2);border:1px solid var(--line);
   color:var(--txt);font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center}
 
+/* ---------- visor de reportes (PDF / imagen) dentro de la app ---------- */
+#visor{position:fixed;inset:0;z-index:300;background:#d9ddd9;display:none;flex-direction:column}
+#visor.on{display:flex}
+#visor .vbar{background:#16271e;border-bottom:1px solid var(--line);
+  padding:calc(env(safe-area-inset-top,0px) + 8px) 10px 8px;display:flex;gap:8px;align-items:center}
+#visor .vbar button{background:var(--card2);border:1.5px solid var(--line);border-radius:12px;
+  padding:10px 13px;font-size:15px;font-weight:700;color:var(--txt);min-height:44px}
+#visor .vbar button.pri{background:var(--accent2);border-color:var(--accent2);color:#06120b}
+#visor .vbar button:disabled{opacity:.4}
+#visorEstado{background:#16271e;color:var(--dim);font-size:13px;padding:0 12px 8px;display:none}
+#visorEstado.on{display:block}
+#visorEstado button{background:var(--blue);color:#0b1b2b;border:none;border-radius:10px;padding:9px 14px;
+  font-weight:800;font-size:15px;margin-top:6px;width:100%}
+#visorFrame{flex:1;border:none;background:#fff;width:100%}
+
 /* ---------- toast ---------- */
-.toast{position:fixed;left:16px;right:16px;bottom:calc(90px + var(--safe-b));z-index:200;
+.toast{position:fixed;left:16px;right:16px;bottom:calc(90px + var(--safe-b));z-index:400;
   background:#14351f;border:1px solid #2f6b45;color:var(--accent);border-radius:14px;
   padding:14px 16px;font-weight:700;text-align:center;opacity:0;transform:translateY(12px);
   transition:.25s;pointer-events:none;font-size:15.5px}
@@ -630,6 +645,16 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       <input id="pickQ" placeholder="Buscar o escribir nuevo…" oninput="renderPick()"></div>
     <div id="pickList"></div>
   </div>
+</div>
+<div id="visor">
+  <div class="vbar">
+    <button onclick="cerrarVisor()">✕ Cerrar</button>
+    <span style="flex:1"></span>
+    <button class="pri" id="vPDF" onclick="visorPDF()">📄 PDF</button>
+    <button id="vIMG" onclick="visorImagen()">🖼 Imagen</button>
+  </div>
+  <div id="visorEstado"></div>
+  <iframe id="visorFrame" title="Vista previa del reporte"></iframe>
 </div>
 <div class="toast" id="toast"></div>
 <script>
@@ -2059,11 +2084,7 @@ function exportarAyPDF(){
   <tfoot><tr><td colspan="3">Total · ${L.rows.length} trabajo${L.rows.length===1?'':'s'}</td><td class="n">${fmtHa(L.totHa)}</td><td></td><td class="n">US$ ${fmt(L.tot,2)}</td></tr></tfoot></table>
   <div class="nota">Siembra y fertilización US$${dec(L.base)}/ha · fumigación y cebo US$${dec(L.base/2)}/ha</div>
   </body></html>`;
-  const win=window.open('','_blank');
-  if(!win){ toast('Habilitá las ventanas emergentes para exportar el PDF','err'); return; }
-  win.document.open(); win.document.write(html); win.document.close();
-  setTimeout(()=>{ try{ win.focus(); win.print(); }catch(e){} }, 300);
-  toast('Elegí "Guardar en PDF" o compartilo desde el diálogo');
+  abrirVisor(html, 'Liquidacion '+L.nombre+' '+hoyISO(), false);
 }
 // imagen (PNG) dibujada en el celular, lista para mandar por WhatsApp
 function imagenAy(){
@@ -2264,18 +2285,8 @@ function reportePDF(t){
 }
 function exportarPDF(id){
   const t = S.trabajos.find(x=>x.id===id); if(!t) return;
-  const html = reportePDF(t);
-  // se abre en una pestaña nueva en blanco (no en un iframe escondido) para que el
-  // pie de impresión del navegador no muestre la dirección de tu app: al imprimir
-  // desde una pestaña "about:blank" no aparece ningún link identificable
-  const win = window.open('', '_blank');
-  if(!win){ toast('Habilitá las ventanas emergentes para exportar el PDF','err'); return; }
-  win.document.open(); win.document.write(html); win.document.close();
-  setTimeout(()=>{
-    try{ win.focus(); win.print(); }
-    catch(e){ toast('No se pudo abrir la impresión','err'); }
-  }, 300);
-  toast('Elegí "Guardar en PDF" en el diálogo de impresión');
+  // se muestra dentro de la app (en el iPhone instalado, una ventana nueva quedaba sin botones)
+  abrirVisor(reportePDF(t), 'Trabajo '+t.cliente+(t.ot?' OT '+t.ot:'')+' '+t.fecha, false);
 }
 
 
@@ -2300,7 +2311,7 @@ var REP_PRESETS = {
   cliente: ['fecha','tipo','campo','ot','ha','precio','total','mezcla','rTot','rTipo','rCampo','rProd','rOT','secRes','secDet'],
   interno: REP_CAMPOS.map(c=>c[0]).concat(REP_RESUMEN.map(c=>c[0])).concat(['secRes','secDet'])
 };
-var REP = null;
+var REP = null, REP_ANCHO = false;
 function repCampos(){
   if(!S.repCampos){
     S.repCampos={};
@@ -2490,6 +2501,7 @@ function htmlReporte(){
     ${(c.ha||c.total)?`<tfoot><tr>${cols.map((x,i)=>`<td${x.der?' class="n"':''}>${i===0?'Total':(x.h==='Ha'?fmtHa(totHa):(x.h==='Total'&&totPlata?'$'+fmt(totPlata):''))}</td>`).join('')}</tr></tfoot>`:''}
     </table>` : '';
   const ancho = cols.length>7;     // muchas columnas: hoja apaisada
+  REP_ANCHO = ancho;
   return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
   <title>${esc(titulo)} ${F(desde)}-${F(hasta)}</title>
   <style>*{box-sizing:border-box}body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#111;padding:26px;font-size:13px;line-height:1.45}
@@ -2512,11 +2524,173 @@ function exportarReporte(){
   const ts=repTrabajos().filter(t=>!REP.excl[t.id]);
   if(!ts.length) return;
   const html=htmlReporte();
-  const win=window.open('','_blank');
-  if(!win){ toast('Habilitá las ventanas emergentes para exportar el PDF','err'); return; }
-  win.document.open(); win.document.write(html); win.document.close();
-  setTimeout(()=>{ try{ win.focus(); win.print(); }catch(e){} }, 300);
-  toast('Elegí "Guardar en PDF" en el diálogo de impresión');
+  const cl=[...new Set(ts.map(t=>t.cliente))];
+  abrirVisor(html, (REP.titulo.trim()||('Reporte '+(cl.length===1?cl[0]:'trabajos')))+' '+hoyISO(), REP_ANCHO);
+}
+
+/* ================= VISOR: ver el reporte dentro de la app y sacar PDF o imagen =================
+   El reporte se muestra en un cuadro dentro de la app (con botón Cerrar), y desde ahí se genera
+   un PDF de verdad o una imagen PNG que se comparten con el menú del celular (WhatsApp, Mail,
+   Archivos…). Para armar el PDF y la imagen se usan dos librerías gratuitas (html2canvas y
+   jsPDF) que se bajan la primera vez que se usan y quedan guardadas en el celular. */
+var VISOR = { html:'', nombre:'', apaisado:false, listo:null, ocupado:false };
+var LIBS = {
+  h2c: ['https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'html2canvas'],
+  pdf: ['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'jspdf']
+};
+async function cargarLib(k){
+  const [url, glob] = LIBS[k];
+  if(window[glob]) return;
+  const key = 'droneLib_'+k;
+  let code = null;
+  try{ code = localStorage.getItem(key); }catch(e){}
+  if(!code){
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('sin conexión');
+    code = await r.text();
+    try{ localStorage.setItem(key, code); }catch(e){}     // si no entra, se vuelve a bajar la próxima
+  }
+  const sc = document.createElement('script'); sc.textContent = code; document.head.appendChild(sc);
+  if(!window[glob]) throw new Error('no se pudo cargar '+glob);
+}
+function abrirVisor(html, nombre, apaisado){
+  VISOR = { html, nombre: String(nombre||'reporte').replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,'_'),
+            apaisado: !!apaisado, listo:null, ocupado:false };
+  $('visorFrame').srcdoc = html;
+  visorEstado('');
+  $('vPDF').disabled=false; $('vIMG').disabled=false;
+  $('visor').classList.add('on');
+}
+function cerrarVisor(){
+  $('visor').classList.remove('on');
+  $('visorFrame').srcdoc = '';
+  VISOR.listo = null;
+}
+function visorEstado(htmlTxt){
+  const e=$('visorEstado'); e.innerHTML=htmlTxt; e.classList.toggle('on', !!htmlTxt);
+}
+// arma un iframe escondido del ancho de una hoja, para que el PDF salga igual en cualquier celular
+async function marcoOculto(){
+  const W = VISOR.apaisado ? 1100 : 780;
+  const f = document.createElement('iframe');
+  f.style.cssText = `position:fixed;left:-${W+100}px;top:0;width:${W}px;height:200px;border:0;visibility:hidden`;
+  document.body.appendChild(f);
+  await new Promise(res=>{ f.onload=res; f.srcdoc = VISOR.html; });
+  const d = f.contentDocument;
+  d.body.style.padding = '0'; d.body.style.margin = '0';
+  const wrap = d.createElement('div'); wrap.style.padding='26px'; wrap.style.background='#fff';
+  while(d.body.firstChild) wrap.appendChild(d.body.firstChild);
+  d.body.appendChild(wrap);
+  await new Promise(r=>setTimeout(r,60));
+  const H = Math.ceil(wrap.getBoundingClientRect().height);
+  f.style.height = H+'px';
+  await new Promise(r=>setTimeout(r,60));
+  return { f, d, wrap, W, H };
+}
+// dónde se puede cortar una hoja sin partir una fila: antes de cada fila, título o bloque
+function puntosDeCorte(d, wrap){
+  const top0 = wrap.getBoundingClientRect().top;
+  const ps = [];
+  d.querySelectorAll('tr, h2, .grid, footer, .nota, .sub').forEach(el=>{
+    const r = el.getBoundingClientRect();
+    let y = r.top - top0;
+    // un título no se deja solo al pie de la hoja: se corta antes del título
+    if(el.tagName==='TR' && el.parentElement && el.parentElement.tagName==='THEAD') return;
+    ps.push(Math.floor(y));
+  });
+  return ps.sort((a,b)=>a-b);
+}
+async function compartirArchivo(blob, nombre, tipo){
+  const file = new File([blob], nombre, {type: tipo});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({files:[file], title:nombre});
+      visorEstado(''); return true;
+    }catch(e){
+      if(e && e.name==='AbortError'){ visorEstado(''); return true; }
+      // el celular a veces pide un toque nuevo para compartir (si tardó en armarse)
+      VISOR.listo = {blob, nombre, tipo};
+      visorEstado(`✓ Listo: ${esc(nombre)}<button onclick="compartirListo()">📤 Compartir</button>`);
+      return false;
+    }
+  }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nombre;
+  document.body.appendChild(a); a.click(); a.remove();
+  visorEstado(''); toast('Archivo descargado');
+  return true;
+}
+function compartirListo(){
+  const L=VISOR.listo; if(!L) return;
+  const file=new File([L.blob], L.nombre, {type:L.tipo});
+  navigator.share({files:[file], title:L.nombre}).then(()=>visorEstado('')).catch(e=>{
+    if(!e || e.name!=='AbortError') toast('No se pudo compartir','err');
+  });
+}
+async function prepararLibs(conPDF){
+  visorEstado('Preparando… (la primera vez se baja una herramienta, necesita señal)');
+  await cargarLib('h2c');
+  if(conPDF) await cargarLib('pdf');
+}
+async function visorPDF(){
+  if(VISOR.ocupado) return;
+  VISOR.ocupado=true; $('vPDF').disabled=true; $('vIMG').disabled=true;
+  let m=null;
+  try{
+    await prepararLibs(true);
+    visorEstado('Armando el PDF…');
+    m = await marcoOculto();
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({orientation: VISOR.apaisado?'landscape':'portrait', unit:'pt', format:'a4'});
+    const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight(), mg = 24;
+    const escalaPt = (pw-2*mg) / m.W;                 // puntos por pixel
+    const altoHoja = Math.floor((ph-2*mg) / escalaPt);  // pixeles que entran en una hoja
+    const cortes = puntosDeCorte(m.d, m.wrap);
+    let y = 0, pag = 0;
+    while(y < m.H - 2){
+      let fin = Math.min(m.H, y + altoHoja);
+      if(fin < m.H){
+        const c = cortes.filter(p=>p>y+40 && p<=fin);
+        if(c.length) fin = c[c.length-1];
+      }
+      const canvas = await html2canvas(m.wrap, { scale:2, backgroundColor:'#ffffff', logging:false,
+        x:0, y:y, width:m.W, height:fin-y, windowWidth:m.W, windowHeight:m.H });
+      if(pag>0) pdf.addPage();
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', mg, mg, m.W*escalaPt, (fin-y)*escalaPt);
+      y = fin; pag++;
+      visorEstado(`Armando el PDF… hoja ${pag}`);
+    }
+    const blob = pdf.output('blob');
+    visorEstado('');
+    await compartirArchivo(blob, VISOR.nombre+'.pdf', 'application/pdf');
+  }catch(e){
+    visorEstado(`No se pudo armar el PDF (${esc(e.message||'error')}). Si es la primera vez, conectate a internet y probá de nuevo.`);
+  }finally{
+    if(m) m.f.remove();
+    VISOR.ocupado=false; $('vPDF').disabled=false; $('vIMG').disabled=false;
+  }
+}
+async function visorImagen(){
+  if(VISOR.ocupado) return;
+  VISOR.ocupado=true; $('vPDF').disabled=true; $('vIMG').disabled=true;
+  let m=null;
+  try{
+    await prepararLibs(false);
+    visorEstado('Armando la imagen…');
+    m = await marcoOculto();
+    // el iPhone no deja dibujar imágenes gigantes: se baja la nitidez si el reporte es muy largo
+    const escala = Math.max(0.6, Math.min(2, Math.sqrt(15000000/(m.W*m.H))));
+    const canvas = await html2canvas(m.wrap, { scale:escala, backgroundColor:'#ffffff', logging:false,
+      windowWidth:m.W, windowHeight:m.H });
+    const blob = await new Promise(r=>canvas.toBlob(r,'image/png'));
+    if(!blob) throw new Error('el reporte es muy largo para una imagen, usá PDF');
+    visorEstado('');
+    await compartirArchivo(blob, VISOR.nombre+'.png', 'image/png');
+  }catch(e){
+    visorEstado(`No se pudo armar la imagen (${esc(e.message||'error')}).`);
+  }finally{
+    if(m) m.f.remove();
+    VISOR.ocupado=false; $('vPDF').disabled=false; $('vIMG').disabled=false;
+  }
 }
 
 /* ================= NÚMEROS ================= */
