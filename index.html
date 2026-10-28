@@ -473,7 +473,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       <button class="cr-b" id="crBtn" onclick="cronoToggle()">Arrancar</button>
       <button class="cr-x" id="crReset" onclick="cronoReset()" style="display:none">✕</button>
     </div>
-    <div class="hint">Podés cerrar la app y bloquear la pantalla: cuenta contra el reloj del celular.</div>
+    <div class="hint" id="cronoHint">Podés cerrar la app y bloquear la pantalla: cuenta contra el reloj del celular.</div>
 
     <div class="lbl">Ayudante / operador</div>
     <div class="chips" id="fPersona"></div>
@@ -926,8 +926,18 @@ function renderModoTipo(){
 }
 
 /* ================= EDITAR UN TRABAJO YA CARGADO ================= */
+/* Editar un trabajo viejo NO pisa el que estás cargando: antes de abrir la edición, lo que tenías
+   en el formulario (cliente, mezcla, ha…) queda guardado como borrador, y el cronómetro sigue
+   corriendo aparte. Al guardar o cancelar la edición, el trabajo en curso vuelve solo. */
+var enCursoGuardado = null;      // resumen del trabajo en curso guardado aparte (para el aviso)
 function editarTrabajo(id){
   const t = S.trabajos.find(x=>x.id===id); if(!t) return;
+  if(!F.editId){
+    if(!draftVacio()){
+      _draftListo = true; saveDraft();                 // queda en el borrador (droneApp_draft_v1)
+      enCursoGuardado = [F.tipo, F.cliente, F.est, F.lote].filter(Boolean).join(' · ') || 'sin cliente';
+    } else enCursoGuardado = null;
+  }
   resetF();
   F.editId = id; F.fecha = t.fecha; F.tipo = t.tipo || null;
   F.cliente = t.cliente || null; F.est = t.est||null; F.lote = t.lote||null;
@@ -964,9 +974,26 @@ function renderModoEdicion(){
   $('ttl').textContent = editando?'Editar trabajo':TTL.nuevo;
   if(editando){
     const t = S.trabajos.find(x=>x.id===F.editId);
-    $('bannerEditTxt').textContent = t
-      ? `${t.cliente} · ${t.tipo} · ${t.fecha.split('-').reverse().join('/')}` : '';
+    $('bannerEditTxt').innerHTML = (t
+      ? esc(`${t.cliente} · ${t.tipo} · ${t.fecha.split('-').reverse().join('/')}`) : '')
+      + (enCursoGuardado || (S.crono && (S.crono.inicio || S.crono.acumulado))
+        ? `<div style="margin-top:6px;color:#9fe0b5">⏸ Tu trabajo en curso${enCursoGuardado?' ('+esc(enCursoGuardado)+')':''} quedó guardado aparte${S.crono&&S.crono.inicio?' y el cronómetro sigue corriendo':''}. Vuelve solo cuando guardes o canceles esta edición.</div>` : '');
   }
+  // el cronómetro es del trabajo en curso: mientras editás uno viejo no se muestra (ni se toca)
+  $('crono').style.display = editando ? 'none' : '';
+  $('cronoHint').textContent = editando
+    ? (S.crono && S.crono.inicio ? '⏱ El cronómetro sigue corriendo para el trabajo en curso. Las horas de este trabajo editalas a mano arriba.' : 'Las horas de este trabajo editalas a mano arriba.')
+    : 'Podés cerrar la app y bloquear la pantalla: cuenta contra el reloj del celular.';
+}
+// terminar una edición (guardada o cancelada) y volver al trabajo que estabas cargando
+function salirDeEdicion(){
+  resetF();
+  DRAFT_INPUTS.concat(['fHasTancada']).forEach(i=>{ const el=$(i); if(el) el.value=''; });
+  const volvio = restoreDraft();
+  if(!volvio) renderAll();
+  enCursoGuardado = null;
+  renderModoEdicion(); renderCrono();
+  if(volvio) setTimeout(()=>toast('Volviste al trabajo en curso'), 2400);
 }
 function cancelarEdicion(){
   const id = F.editId;
@@ -1130,7 +1157,7 @@ function renderEst(){
   const box=$('boxEst');
   if(!F.cliente){ box.style.display='none'; return; }
   const ests = Object.keys(S.jer[F.cliente]||{});
-  box.style.display = ests.length ? 'block' : 'none';
+  box.style.display = 'block';            // siempre: un cliente nuevo todavía no tiene establecimientos y necesita el "+ nuevo"
   $('fEst').innerHTML = ests.map(e=>
     `<button class="chip${F.est===e?' on':''}" onclick="pickEst(${JSON.stringify(e).replace(/"/g,'&quot;')})">${esc(e)}</button>`).join('')
     + `<button class="chip add" onclick="openPick('est')">+ nuevo</button>`;
@@ -1643,6 +1670,7 @@ function guardarTrabajo(){
   if(eraEdicion){ renderHist(); }
 }
 function limpiarForm(manual){
+  if(F.editId){ salirDeEdicion(); return; }   // en edición, "Cancelar" / "Guardar cambios" vuelven al trabajo en curso
   clearDraft();
   const cli=F.cliente, est=F.est, tipo=F.tipo, sigue=F.sigue;
   resetF();
