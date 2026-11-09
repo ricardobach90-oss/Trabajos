@@ -370,6 +370,15 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
         <input type="text" inputmode="decimal" id="fGota" placeholder="—" oninput="calcAll()">
       </div>
     </div>
+    <div id="fumi2" style="display:none;margin-top:12px">
+      <div class="lbl" id="fumi2Lbl" style="color:var(--blue)">P60</div>
+      <div class="row">
+        <input type="text" inputmode="decimal" id="f2Ancho" placeholder="—" oninput="calcAll()">
+        <input type="text" inputmode="decimal" id="f2Vel" placeholder="—" oninput="calcAll()">
+        <input type="text" inputmode="decimal" id="f2Gota" placeholder="—" oninput="calcAll()">
+      </div>
+      <div class="hint">Vacío = igual que el <span id="fumi2Base">P150</span> (lo gris). Cambiale solo lo distinto: lo que cambies se recuerda para este cliente.</div>
+    </div>
     <div class="hint" id="anchoHint"></div>
   </div>
 
@@ -420,11 +429,11 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
         <div class="v sm" id="tAguaL">—</div>
       </div>
       <div class="stat">
-        <div class="k">N° de tancadas</div>
+        <div class="k" id="tNumK">N° de tancadas</div>
         <div class="v" id="tNum">—</div>
       </div>
       <div class="stat">
-        <div class="k">Última tancada</div>
+        <div class="k" id="tUltK">Última tancada</div>
         <div class="v sm" id="tUltima">—</div>
       </div>
     </div>
@@ -477,6 +486,10 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 
     <div class="lbl">Ayudante / operador</div>
     <div class="chips" id="fPersona"></div>
+
+    <div class="lbl" style="margin-top:16px">Drones</div>
+    <div class="chips" id="fDrones"></div>
+    <div class="hint" id="dronesHint"></div>
   </div>
 
   <button class="btn" id="btnGuardar" onclick="guardarTrabajo()">✓ Guardar trabajo</button>
@@ -554,6 +567,12 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       <div class="lbl">Clientes que trabajan con OT</div>
       <input type="text" id="pClientesOT" class="mb" placeholder="Nalmer, Cina Cina" oninput="guardarParam()">
       <div class="hint" style="margin-top:-8px;margin-bottom:14px">Con estos clientes la app te recuerda cargar el número de orden de trabajo. Separados con coma.</div>
+      <div class="lbl">Tanque mezclador (L)</div>
+      <input type="text" inputmode="decimal" id="pTanqueMez" class="mb" oninput="guardarParam()">
+      <div class="hint" style="margin-top:-8px;margin-bottom:14px">Capacidad máxima del tanque donde preparás la tancada. Se pone sola en "Tanque máx." al fumigar.</div>
+      <div class="lbl">Tus drones</div>
+      <input type="text" id="pDrones" class="mb" placeholder="P150, P60" oninput="guardarParam()">
+      <div class="hint" style="margin-top:-8px;margin-bottom:14px">Aparecen como chips en cada trabajo, para separar las ha/h según con qué drones trabajaste. Separados con coma.</div>
       <div class="divide"></div>
       <div class="lbl">Pago a ayudantes — tarifa base (USD/ha en siembra y fertilización)</div>
       <input type="text" inputmode="decimal" id="pTarifaDef" class="mb" oninput="guardarParam()">
@@ -744,7 +763,7 @@ function uid(){ return Math.random().toString(36).slice(2,10); }
    restauramos, sin necesidad de apretar "Guardar trabajo" (así el cronómetro sigue corriendo). */
 var KD = 'droneApp_draft_v1';
 var DRAFT_INPUTS = ['fHa','fPrecio','fCaldo','fMaxTanque','fHasTancada','fViento','fHoras','fKm',
-                    'fAncho','fVelocidad','fGota','fOT',
+                    'fAncho','fVelocidad','fGota','fOT','f2Ancho','f2Vel','f2Gota',
                     'sProdNombre','sProdDosis','sCantTotal'];
 var _draftListo = false;   // se arma recién después de restaurar, para no pisar un borrador bueno
 function draftVacio(){
@@ -766,6 +785,7 @@ function restoreDraft(){
   F = d.F;
   if(!F.prods) F.prods=[];
   if(!F.adys)  F.adys=[];
+  if(!F.drones) F.drones=dronesUltimos();
   renderAll();
   DRAFT_INPUTS.forEach(id=>{ const el=$(id); if(el && d.inp && d.inp[id]!=null) el.value=d.inp[id]; });
   calcAll();
@@ -906,7 +926,76 @@ function normOT(v){ return String(v||'').trim().replace(/^o\.?\s*t\.?\s*[-:#nº�
 var F = {};
 function resetF(){ F = { fecha:hoyISO(), tipo:null, cliente:null, est:null, lote:null,
   prods:[], adys:[], persona:null, precioManual:false, editId:null, sigue:false,
-  agua:null, tancadas:null, maxTanque:null, cantManual:false, tancManual:false, kmManual:false }; }
+  agua:null, tancadas:null, maxTanque:null, cantManual:false, tancManual:false, kmManual:false,
+  drones: dronesUltimos() }; }
+/* ====== DRONES: con cuáles se hizo cada trabajo (separa las ha/h de uno y de dos drones) ======
+   Los chips se acuerdan de lo último que marcaste: si mañana salís con los dos, tocás una vez y
+   queda así para todos los trabajos siguientes. Los trabajos viejos (sin dato) cuentan como P150. */
+function flota(){ return String(params().drones||'P150, P60').split(',').map(x=>x.trim()).filter(Boolean); }
+function dronesUltimos(){
+  const u = (S && S.ultDrones) ? S.ultDrones.slice() : null;
+  return u && u.length ? u : [flota()[0]||'P150'];
+}
+// segundo drone (ej. P60): misma mezcla y caldo; ancho/velocidad/gota/tanque propios.
+// Campo vacío = copia el valor del primero. Lo que cambiás se recuerda (por cliente; el tanque, por drone).
+function dron2(){ return (F.drones && F.drones.length>1) ? F.drones[1] : null; }
+function val2(id2, id1){ const v=num($(id2).value); return v!=null ? v : num($(id1).value); }
+function fumi2Vals(){
+  const d=dron2(); if(!d) return null;
+  return { dron:d, ancho:val2('f2Ancho','fAncho'), vel:val2('f2Vel','fVelocidad'),
+           gota:val2('f2Gota','fGota') };
+}
+function renderFumi2(){
+  const d=dron2(), on=!!d;
+  const b=$('fumi2'); if(!b) return;
+  b.style.display = on ? '' : 'none';
+  if(!on) return;
+  const d1 = F.drones[0];
+  $('fumi2Lbl').textContent = d+' — ancho (m) · velocidad (km/h) · gota (µm)';
+  $('fumi2Base').textContent = d1;
+  // lo gris: el valor que se copia del primero
+  [['f2Ancho','fAncho'],['f2Vel','fVelocidad'],['f2Gota','fGota']].forEach(([a,c])=>{
+    const v=$(c).value.trim(); $(a).placeholder = v || '—';
+  });
+}
+// carga lo recordado del segundo drone: diferencias por cliente y tanque por drone
+function precargarFumi2(force){
+  const d=dron2(); if(!d) return;
+  const o = (F.cliente && S.fumiParams && S.fumiParams[F.cliente] && S.fumiParams[F.cliente].d2) || {};
+  const pon=(id,v)=>{ const el=$(id); if(force || !el.value.trim()) el.value = v!=null ? dec(v) : ''; };
+  pon('f2Ancho', o.ancho); pon('f2Vel', o.vel); pon('f2Gota', o.gota);
+}
+// pone en el formulario el segundo drone de un trabajo guardado (solo lo que difiere del primero)
+function cargarFumi2De(t){
+  ['f2Ancho','f2Vel','f2Gota'].forEach(i=>$(i).value='');
+  if(!t.d2) return;
+  const dif=(v,base)=> (v!=null && v!==base) ? dec(v) : '';
+  $('f2Ancho').value=dif(t.d2.ancho,t.ancho); $('f2Vel').value=dif(t.d2.vel,t.vel);
+  $('f2Gota').value=dif(t.d2.gota,t.gota);
+}
+// ha/h teóricas de un trabajo guardado (con dos drones, la suma)
+function haTeoDe(t){
+  if(t.ancho==null || t.vel==null) return null;
+  return (t.ancho*t.vel + ((t.d2 && t.d2.ancho && t.d2.vel) ? t.d2.ancho*t.d2.vel : 0))/10;
+}
+function dronesDe(t){ return (t.drones && t.drones.length) ? t.drones : ['P150']; }
+function toggleDron(d){
+  F.drones = F.drones || [];
+  const i = F.drones.indexOf(d);
+  if(i>=0) F.drones.splice(i,1); else F.drones.push(d);
+  const orden = flota(); F.drones.sort((a,b)=>orden.indexOf(a)-orden.indexOf(b));
+  if(!F.editId){ S.ultDrones = F.drones.slice(); save(); }   // queda para los próximos trabajos
+  if(dron2()) precargarFumi2(false);
+  renderDrones(); renderFumi2(); calcAll();
+}
+function renderDrones(){
+  const c=$('fDrones'); if(!c) return;
+  const sel = F.drones || [];
+  c.innerHTML = flota().map(d=>`<button class="chip sm${sel.includes(d)?' on':''}" onclick="toggleDron(${esc(JSON.stringify(d))})">${sel.includes(d)?'✓ ':''}${esc(d)}</button>`).join('');
+  $('dronesHint').textContent = !sel.length ? '⚠ Marcá con qué drone trabajaste'
+    : (F.editId ? '' : (sel.length>1 ? `Trabajando con ${sel.length} drones · queda marcado para los próximos` : 'Queda marcado para los próximos trabajos'));
+  $('dronesHint').style.color = sel.length ? '' : 'var(--warn)';
+}
 
 // fumigar es el único flujo "complejo" (mezcla, caldo, agua, tancadas)
 var TIPOS_SIMPLES = ['Sembrar','Cebo','Fertilizar'];
@@ -945,6 +1034,7 @@ function editarTrabajo(id){
   F.adys  = (t.adys||[]).map(p=>({n:p.n, d:p.d, u:'ha'}));
   F.persona = t.ay||null; F.precioManual = true;
   F.sigue = !!t.sigue;
+  F.drones = dronesDe(t).slice();
   F.agua = t.agua!==undefined?t.agua:null;
   F.tancadas = t.tancadas!==undefined?t.tancadas:null;
   F.maxTanque = t.maxTanque!==undefined?t.maxTanque:null;
@@ -954,6 +1044,7 @@ function editarTrabajo(id){
   $('fMaxTanque').value=dec(t.maxTanque);
   $('fKm').value=dec(t.km); F.kmManual = t.km!=null;
   $('fAncho').value=dec(t.ancho); $('fVelocidad').value=dec(t.vel); $('fGota').value=dec(t.gota);
+  cargarFumi2De(t);
   $('fOT').value = t.ot||'';
   // reconstruir el nº de ha por tancada desde lo guardado
   if(t.tancadas && t.ha) $('fHasTancada').value = dec(+(t.ha/t.tancadas).toFixed(2)); else $('fHasTancada').value='';
@@ -1040,6 +1131,7 @@ function cargarDesde(u){
   F.persona=u.ay||null; F.precioManual=true;
   $('fPrecio').value=dec(u.precio); $('fCaldo').value=dec(u.caldo); $('fMaxTanque').value=dec(u.maxTanque);
   $('fAncho').value=dec(u.ancho); $('fVelocidad').value=dec(u.vel); $('fGota').value=dec(u.gota);
+  cargarFumi2De(u); if(dron2()) precargarFumi2(false);
   $('fOT').value=u.ot||'';
   if(TIPOS_SIMPLES.includes(u.tipo) && u.prods && u.prods[0]){
     $('sProdNombre').value=u.prods[0].n; $('sProdDosis').value=dec(u.prods[0].d);
@@ -1073,6 +1165,7 @@ function pickTipo(t){
   if(F.tipo && esFumigacion()){
     const c = CALDO_DEF[F.tipo];
     if(c && !$('fCaldo').value) $('fCaldo').value = dec(c);
+    if(!$('fMaxTanque').value) $('fMaxTanque').value = dec(params().tanqueMez||300);   // el mezclador de siempre
     precargarFumiParams(false);   // si recién ahora sabemos que es fumigación, llenar lo que falte
   }
   renderModoTipo();
@@ -1118,6 +1211,7 @@ function precargarFumiParams(force){
   if(force || !a.value.trim()) a.value = fp && fp.ancho!=null ? dec(fp.ancho) : '';
   if(force || !v.value.trim()) v.value = fp && fp.vel!=null   ? dec(fp.vel)   : '';
   if(force || !g.value.trim()) g.value = fp && fp.gota!=null  ? dec(fp.gota)  : '';
+  precargarFumi2(force);
 }
 
 /* ================= CLIENTE / EST / LOTE ================= */
@@ -1374,6 +1468,7 @@ function renderDatalists(){
 
 /* ================= CÁLCULO DEL FORMULARIO ================= */
 function calcAll(){
+  renderFumi2();
   const ha = num($('fHa').value), precio = num($('fPrecio').value);
   $('fTotal').textContent = (ha&&precio) ? '$'+fmt(ha*precio,0) : '—';
   const lotes = (F.cliente&&F.est) ? (S.jer[F.cliente][F.est]||{}) : {};
@@ -1416,6 +1511,7 @@ function calcFumigacion(ha){
   F.maxTanque = maxTanque;
 
   const litrosTancada = (caldo>0 && hasTancada>0) ? caldo*hasTancada : 0;
+
   const litrosLote = (caldo>0 && ha>0) ? caldo*ha : 0;
 
   // agua = caldo/ha menos todo lo disuelto (productos L + adyuvantes pasados a L/ha)
@@ -1531,10 +1627,14 @@ function renderSugPrecio(){
   const fum = esFumigacion() && !!F.tipo;
   const a=num($('fAncho').value), v=num($('fVelocidad').value);
   const pcAh = num($('fPrecio').value);
+  const f2 = fumi2Vals();
+  // con dos drones las ha/h teóricas del equipo son la suma de los dos
+  const av = (a&&v) ? a*v + ((f2 && f2.ancho && f2.vel) ? f2.ancho*f2.vel : 0) : 0;
   if(ah){
-    if(fum && a && v){
-      const hah = a*v/10;
-      ah.innerHTML = `≈ <b>${fmt(hah,1)} ha/h</b> teóricas`
+    if(fum && av){
+      const hah = av/10;
+      ah.innerHTML = `≈ <b>${fmt(hah,1)} ha/h</b> teóricas` + (f2 && f2.ancho && f2.vel
+          ? ` <span style="opacity:.8">(${esc(F.drones[0])} ${fmt(a*v/10,1)} + ${esc(f2.dron)} ${fmt(f2.ancho*f2.vel/10,1)})</span>` : '')
         + (pcAh ? ` → a $${dec(pcAh)}/ha ganás <b>$${fmt(hah*pcAh,0)}/h</b>` : '');
     } else ah.innerHTML='';
   }
@@ -1542,12 +1642,12 @@ function renderSugPrecio(){
   if(!F.cliente || !F.tipo){ sug.innerHTML=''; return; }
   const lineas=[];
   const ult = S.precios[F.cliente+'|'+F.tipo];
-  const pt = fum ? precioPorTiempo(a,v) : null;
+  const pt = (fum && av) ? Math.round(10*objetivoHora()/av*2)/2 : null;
   const izq = ult!=null ? `Último cobrado: <b>$${dec(ult)}/ha</b>` : 'Sin precio anterior';
   const der = pt!=null ? ` · Por tiempo: <b style="color:var(--accent)">$${dec(pt)}/ha</b>` : '';
   lineas.push(`<div>${izq}${der}</div>`);
   // sugerencia inversa: dado el precio, 3 opciones de ancho×velocidad que dan el objetivo por hora
-  if(fum){
+  if(fum && !f2){                      // la sugerencia de velocidades es para un drone solo
     const pc = num($('fPrecio').value);
     if(pc){
       const th = objetivoHora();
@@ -1602,6 +1702,9 @@ function guardarTrabajo(){
     ancho: simple ? null : num($('fAncho').value),
     vel:   simple ? null : num($('fVelocidad').value),
     gota:  simple ? null : num($('fGota').value),
+    // segundo drone (ej. P60): sus valores efectivos (lo vacío copiado del primero)
+    d2: simple ? null : fumi2Vals(),
+    drones: (F.drones||[]).slice(),
     op:'', ay: F.persona||'', nuevo:true
   };
 
@@ -1645,6 +1748,10 @@ function guardarTrabajo(){
     if(t.ancho!=null) fp.ancho = t.ancho;
     if(t.vel!=null)   fp.vel   = t.vel;
     if(t.gota!=null)  fp.gota  = t.gota;
+    // del segundo drone se recuerda solo lo que le cambiaste (lo demás sigue copiando del primero)
+    if(t.d2){
+      fp.d2 = { ancho:num($('f2Ancho').value), vel:num($('f2Vel').value), gota:num($('f2Gota').value) };
+    }
     S.fumiParams[t.cliente] = fp;
   }
 
@@ -1680,7 +1787,8 @@ function limpiarForm(manual){
    'sProdNombre','sProdDosis','sCantTotal'].forEach(i=>$(i).value='');
   F.agua=null; F.tancadas=null; F.maxTanque=null;
   if(manual){ $('fCaldo').value=''; $('fMaxTanque').value=''; $('fKm').value=''; $('fOT').value='';
-    $('fAncho').value=''; $('fVelocidad').value=''; $('fGota').value=''; }
+    $('fAncho').value=''; $('fVelocidad').value=''; $('fGota').value='';
+    ['f2Ancho','f2Vel','f2Gota'].forEach(i=>$(i).value=''); }
   else if(F.est && !F.sigue){ const km=S.distancias[F.cliente+'|'+F.est]; $('fKm').value = km!=null?dec(km):''; }
   $('fFecha').value = F.fecha;
   renderAll(); renderModoEdicion();
@@ -1860,9 +1968,11 @@ function verDetalle(id){
        t.viento?'Viento '+t.viento+' km/h':'',
        t.ancho!=null?'Ancho '+dec(t.ancho)+' m':'',
        t.vel!=null?'Velocidad '+dec(t.vel)+' km/h':'',
-       (t.ancho!=null&&t.vel!=null)?'≈ '+fmt(t.ancho*t.vel/10,1)+' ha/h teóricas':'',
+       t.d2?`${t.d2.dron}: ancho ${dec(t.d2.ancho)} m · velocidad ${dec(t.d2.vel)} km/h${t.d2.gota!=null?' · gota '+dec(t.d2.gota)+' µm':''}`:'',
+       (t.ancho!=null&&t.vel!=null)?'≈ '+fmt(haTeoDe(t),1)+' ha/h teóricas'+(t.d2?' (los dos drones)':''):'',
        t.gota!=null?'Gota '+dec(t.gota)+' µm':'',
        t.horas?t.horas+' h':'',
+       'Drones: '+dronesDe(t).join(' + ')+(t.drones&&t.drones.length?'':' (sin dato, se toma P150)'),
        t.ay?`Ayudante: ${t.ay} · US$${fmt(pagoAyDe(t),2)} ${t.ayPagado?(t.ayPagado==='antes'?'(pagado)':'(pagado el '+fechaCorta(t.ayPagado)+')'):'(sin pagar)'}`:'',
        (!t.km && !t.sigue && t.est && viajeYaContado(t.fecha,t.cliente,t.est,t.id))?'🚗 Mismo viaje que otro lote de ese día':'']
       .filter(Boolean).map(x=>`<div class="hint">${esc(x)}</div>`).join('')}
@@ -1893,6 +2003,7 @@ function repetir(id){
   $('fMaxTanque').value=dec(t.maxTanque); $('fHasTancada').value='';
   $('fKm').value=dec(t.km); F.kmManual=t.km!=null;
   $('fAncho').value=dec(t.ancho); $('fVelocidad').value=dec(t.vel); $('fGota').value=dec(t.gota);
+  cargarFumi2De(t); if(dron2()) precargarFumi2(false);
   $('fOT').value='';            // un trabajo nuevo lleva su propia OT
   $('fFecha').value=F.fecha; $('fViento').value=''; $('fHoras').value='';
   if(TIPOS_SIMPLES.includes(t.tipo) && t.prods && t.prods[0]){
@@ -2041,6 +2152,11 @@ function renderAyFicha(){
     }).join('') || '<div class="empty" style="padding:24px">No le debés nada 👍</div>'}
     ${ts.length?`<div class="kv big"><span class="k">${n} trabajo${n===1?'':'s'} · ${fmtHa(haSel)} ha</span>
       <span class="v">US$${fmt(suma,2)}</span></div>
+    ${(()=>{ const pc=ayPesosCfg(ayNom);
+      return `<button class="chip sm${pc.on?' on':''}" style="width:100%;justify-content:center;margin:2px 0 10px" onclick="ayPesosTog()">${pc.on?'✓ ':''}$ Agregar el total en pesos a la liquidación</button>`
+      + (pc.on?`<div class="kv" style="margin:-4px 0 10px"><span class="k" style="display:flex;align-items:center;gap:8px">Dólar a
+          <input type="text" inputmode="decimal" style="width:76px;text-align:right;padding:8px 10px" value="${dec(pc.tc)}" oninput="ayPesosTC(this.value)"></span>
+          <span class="v" id="ayPesosVal">$ ${fmt(Math.round(suma*pc.tc),0)}</span></div>`:''); })()}
     <div class="row mb">
       <button class="btn ghost sm" onclick="compartirAyImagen()" ${n?'':'disabled'}>📷 Imagen</button>
       <button class="btn ghost sm" onclick="exportarAyPDF()" ${n?'':'disabled'}>📄 PDF</button>
@@ -2052,7 +2168,7 @@ function renderAyFicha(){
         <span>Pagos anteriores</span><span>${ayVerPagados?'▾':'▸'}</span></button>
       ${ayVerPagados?`
         ${pagos.map(p=>`<div class="kv"><span class="k">${p.fecha.split('-').reverse().join('/')} · ${p.ids.length} trabajo${p.ids.length===1?'':'s'}</span>
-          <span style="display:flex;align-items:center;gap:8px"><span class="v">US$${fmt(p.monto,2)}</span>
+          <span style="display:flex;align-items:center;gap:8px"><span class="v">US$${fmt(p.monto,2)}${p.pesos?`<span style="display:block;font-size:12px;color:var(--dim);font-weight:600">$ ${fmt(p.pesos.monto,0)} (a ${dec(p.pesos.tc)})</span>`:''}</span>
           <button class="chip sm" style="min-height:32px;padding:4px 10px" onclick="deshacerPagoAy('${p.id}')">Deshacer</button></span></div>`).join('')}
         ${pagados.filter(t=>t.ayPagado==='antes').length?`<div class="hint" style="margin:10px 0 6px">Trabajos anteriores a octubre 2026, dados por pagados al estrenar esta sección. Si alguno no se lo pagaste, tocá ↩ y vuelve a la lista de pendientes.</div>
           ${pagados.filter(t=>t.ayPagado==='antes').map(t=>`<div class="kv"><span class="k">${t.fecha.split('-').reverse().join('/')} · ${esc(t.tipo)} · ${esc(t.cliente)} · ${fmtHa(t.ha)} ha</span>
@@ -2065,6 +2181,7 @@ function pagarAy(){
   const monto=Math.round(ts.reduce((a,t)=>a+pagoAyDe(t),0)*100)/100;
   if(!confirm(`¿Le pagaste US$${fmt(monto,2)} a ${ayNom} por ${ts.length} trabajo${ts.length===1?'':'s'}?`)) return;
   const pago={id:uid(), ay:ayNom, fecha:hoyISO(), monto, ids:ts.map(t=>t.id)};
+  const ps=pesosLiq(ts); if(ps) pago.pesos=ps;          // si se le pagó en pesos, queda anotado cuánto
   ts.forEach(t=>{ t.ayMonto=pagoAyDe(t); t.ayPagado=pago.fecha; t.sync=null; });
   S.pagosAy=S.pagosAy||[]; S.pagosAy.push(pago);
   save(); updateSyncPill(); sincronizar();
@@ -2085,6 +2202,28 @@ function ayPendiente(id){
   save(); updateSyncPill();
   aySel.add(id); renderAyFicha(); renderAyud();
 }
+// total en pesos (opcional, por ayudante): a algunos ayudantes (ej. Elias) se les paga en pesos.
+// Se recuerda por ayudante si va o no y el tipo de cambio usado la última vez.
+function ayPesosCfg(nombre){
+  S.ayPesos = S.ayPesos || {};
+  const c = S.ayPesos[nombre] || {};
+  return { on: !!c.on, tc: c.tc || S.tipoCambio || 40 };
+}
+function ayPesosTog(){
+  const c = ayPesosCfg(ayNom);
+  S.ayPesos[ayNom] = { on: !c.on, tc: c.tc };
+  save(); renderAyFicha();
+}
+function ayPesosTC(v){
+  const c = ayPesosCfg(ayNom), tc = num(v);
+  S.ayPesos[ayNom] = { on: c.on, tc: tc>0 ? tc : c.tc };
+  save();
+  const el=$('ayPesosVal');      // solo se actualiza el número, para no perder el foco del campo
+  if(el && tc>0){
+    const tot=trabajosAy(ayNom,false).filter(t=>aySel.has(t.id)).reduce((a,t)=>a+pagoAyDe(t),0);
+    el.textContent = '$ '+fmt(Math.round(tot*tc),0);
+  }
+}
 // datos de la liquidación para el PDF y la imagen
 function liqAy(){
   const ts=trabajosAy(ayNom,false).filter(t=>aySel.has(t.id));
@@ -2092,7 +2231,13 @@ function liqAy(){
     ha:t.ha, tar:tarifaAyudante(t.ay,t.tipo), monto:pagoAyDe(t)}));
   return { nombre:ayNom, rows, totHa:ts.reduce((a,t)=>a+t.ha,0), tot:ts.reduce((a,t)=>a+pagoAyDe(t),0),
     desde: rows.length?rows[0].fecha:'', hasta: rows.length?rows[rows.length-1].fecha:'',
-    base: tarifaBaseAy(ayNom) };
+    base: tarifaBaseAy(ayNom), pesos: pesosLiq(ts) };
+}
+function pesosLiq(ts){
+  const c = ayPesosCfg(ayNom);
+  if(!c.on) return null;
+  const tot = ts.reduce((a,t)=>a+pagoAyDe(t),0);
+  return { tc: c.tc, monto: Math.round(tot*c.tc) };
 }
 function exportarAyPDF(){
   const L=liqAy(); if(!L.rows.length) return;
@@ -2103,13 +2248,15 @@ function exportarAyPDF(){
   table{width:100%;border-collapse:collapse}th,td{padding:7px 5px;border-bottom:1px solid #ddd;text-align:left;font-size:13px}
   th{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.4px}.n{text-align:right;white-space:nowrap}
   tfoot td{font-weight:800;font-size:15px;border-top:2px solid #111;border-bottom:none}
+  tfoot tr.pesos td{border-top:1px solid #ccc;font-size:15px;color:#14532d}
   .nota{color:#666;font-size:12px;margin-top:14px}@media print{body{padding:8px}}</style></head><body>
   <h1>Liquidación — ${esc(L.nombre)}</h1>
   <div class="sub">Trabajos del ${L.desde} al ${L.hasta}</div>
   <table><thead><tr><th>Fecha</th><th>Trabajo</th><th>Campo</th><th class="n">Ha</th><th class="n">US$/ha</th><th class="n">Monto</th></tr></thead>
   <tbody>${L.rows.map(r=>`<tr><td>${r.fecha}</td><td>${esc(r.tipo)}</td><td>${esc(r.campo)}</td>
     <td class="n">${fmtHa(r.ha)}</td><td class="n">${dec(r.tar)}</td><td class="n">US$ ${fmt(r.monto,2)}</td></tr>`).join('')}</tbody>
-  <tfoot><tr><td colspan="3">Total · ${L.rows.length} trabajo${L.rows.length===1?'':'s'}</td><td class="n">${fmtHa(L.totHa)}</td><td></td><td class="n">US$ ${fmt(L.tot,2)}</td></tr></tfoot></table>
+  <tfoot><tr><td colspan="3">Total · ${L.rows.length} trabajo${L.rows.length===1?'':'s'}</td><td class="n">${fmtHa(L.totHa)}</td><td></td><td class="n">US$ ${fmt(L.tot,2)}</td></tr>${L.pesos?`
+  <tr class="pesos"><td colspan="5">Total en pesos (dólar a $${dec(L.pesos.tc)})</td><td class="n">$ ${fmt(L.pesos.monto,0)}</td></tr>`:''}</tfoot></table>
   <div class="nota">Siembra y fertilización US$${dec(L.base)}/ha · fumigación y cebo US$${dec(L.base/2)}/ha</div>
   </body></html>`;
   abrirVisor(html, 'Liquidacion '+L.nombre+' '+hoyISO(), false);
@@ -2118,7 +2265,7 @@ function exportarAyPDF(){
 function imagenAy(){
   const L=liqAy();
   const W=1080, pad=56, rowH=86, headH=250, footH=210;
-  const H=headH+rowH*(L.rows.length+1)+footH;
+  const H=headH+rowH*(L.rows.length+1)+footH+(L.pesos?70:0);
   const c=document.createElement('canvas'); c.width=W; c.height=H;
   const x=c.getContext('2d');
   const F='-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
@@ -2150,6 +2297,13 @@ function imagenAy(){
   x.fillStyle='#111'; x.font=`800 40px ${F}`;
   x.fillText(`Total · ${fmtHa(L.totHa)} ha`, pad, y);
   x.textAlign='right'; x.fillStyle='#14532d'; x.fillText('US$ '+fmt(L.tot,2), cM, y); x.textAlign='left';
+  if(L.pesos){
+    y+=70;
+    x.fillStyle='#111'; x.font=`700 34px ${F}`;
+    x.fillText(`En pesos (dólar a $${dec(L.pesos.tc)})`, pad, y);
+    x.textAlign='right'; x.fillStyle='#14532d'; x.font=`800 40px ${F}`;
+    x.fillText('$ '+fmt(L.pesos.monto,0), cM, y); x.textAlign='left';
+  }
   x.fillStyle='#777'; x.font=`400 24px ${F}`;
   x.fillText(`Siembra y fertilización US$${dec(L.base)}/ha · fumigación y cebo US$${dec(L.base/2)}/ha`, pad, y+56);
   return c;
@@ -2292,6 +2446,7 @@ function reportePDF(t){
     ${t.ancho!=null?`<div><div class="k">Ancho</div><div class="v">${dec(t.ancho)} m</div></div>`:''}
     ${t.vel!=null?`<div><div class="k">Velocidad</div><div class="v">${dec(t.vel)} km/h</div></div>`:''}
     ${t.gota!=null?`<div><div class="k">Gota</div><div class="v">${dec(t.gota)} µm</div></div>`:''}
+    ${t.d2?`<div><div class="k">${esc(t.d2.dron)} · ancho / velocidad</div><div class="v">${dec(t.d2.ancho)} m · ${dec(t.d2.vel)} km/h</div></div>`:''}
     ${t.horas!=null?`<div><div class="k">Horas</div><div class="v">${dec(t.horas)} h</div></div>`:''}
     ${t.ay?`<div><div class="k">Ayudante</div><div class="v">${esc(t.ay)}</div></div>`:''}
     ${t.km!=null?`<div><div class="k">Distancia (ida)</div><div class="v">${dec(t.km)} km</div></div>`:''}
@@ -2328,7 +2483,7 @@ var REP_CAMPOS = [   // [clave, etiqueta, va por defecto]
   ['precio','Precio por ha',1], ['total','Total $',1], ['mezcla','Productos y dosis',1],
   ['cantidades','Cantidad usada de cada producto',0], ['caldo','Caldo (L/ha)',0],
   ['viento','Viento',0], ['avg','Ancho · velocidad · gota',0], ['horas','Horas',0],
-  ['ayudante','Ayudante',0], ['estado','Facturado / cobrado',0], ['km','Distancia',0]
+  ['ayudante','Ayudante',0], ['estado','Facturado / cobrado',0], ['km','Distancia',0], ['drones','Drones',0]
 ];
 var REP_RESUMEN = [
   ['rTot','Totales (trabajos, hectáreas, $)',1], ['rTipo','Por tipo de trabajo',1],
@@ -2518,10 +2673,12 @@ function htmlReporte(){
   }});
   add('caldo','Caldo',t=>t.caldo?dec(t.caldo)+' L/ha':'—',1);
   add('viento','Viento',t=>t.viento!=null&&t.viento!==''?dec(t.viento)+' km/h':'—',1);
-  add('avg','Ancho · vel · gota',t=>[t.ancho!=null?dec(t.ancho)+' m':'',t.vel!=null?dec(t.vel)+' km/h':'',t.gota!=null?dec(t.gota)+' µm':''].filter(Boolean).join(' · ')||'—');
+  add('avg','Ancho · vel · gota',t=>([t.ancho!=null?dec(t.ancho)+' m':'',t.vel!=null?dec(t.vel)+' km/h':'',t.gota!=null?dec(t.gota)+' µm':''].filter(Boolean).join(' · ')||'—')
+    + (t.d2?'<br>'+esc(t.d2.dron)+': '+[t.d2.ancho!=null?dec(t.d2.ancho)+' m':'',t.d2.vel!=null?dec(t.d2.vel)+' km/h':''].filter(Boolean).join(' · '):''));
   add('horas','Horas',t=>t.horas?dec(t.horas):'—',1);
   add('ayudante','Ayudante',t=>esc(t.ay||'—'));
   add('estado','Estado',t=>t.cobr?'Cobrado':(t.fact?'Facturado':'Pendiente'));
+  add('drones','Drones',t=>esc(dronesDe(t).join(' + ')));
   add('km','Km',t=>t.km!=null?dec(t.km):(t.sigue||t.est?'—':'—'),1);
   const det = c.secDet && cols.length ? `<h2>Detalle de los trabajos</h2>
     <table class="det"><thead><tr>${cols.map(x=>`<th${x.der?' class="n"':''}>${x.h}</th>`).join('')}</tr></thead>
@@ -2802,14 +2959,14 @@ function renderNum(){
 // aparte para ver si el negocio te paga tu tiempo. Uso propio (Dubach) se valoriza al costo.
 function paramDef(){
   return { alquilerHa:1.5, margen:35, tarifas:{}, tarifaAyDef:1.5, costoKm:0.28, targetHora:200,
-           sueldoAnio:0, fijosMes:0, propios:'Dubach', clientesOT:'Nalmer, Cina Cina' };
+           sueldoAnio:0, fijosMes:0, propios:'Dubach', clientesOT:'Nalmer, Cina Cina', drones:'P150, P60', tanqueMez:300 };
 }
 function params(){
   if(!S.param) S.param = paramDef();
   const p=S.param, d=paramDef();
   if(p.alquilerHa===undefined) p.alquilerHa = 1.5;   // migración desde amortización
   if(!p.tarifas) p.tarifas = {};
-  ['tarifaAyDef','costoKm','targetHora','sueldoAnio','fijosMes','propios','clientesOT'].forEach(k=>{
+  ['tarifaAyDef','costoKm','targetHora','sueldoAnio','fijosMes','propios','clientesOT','drones','tanqueMez'].forEach(k=>{
     if(p[k]===undefined) p[k]=d[k];
   });
   return p;
@@ -2856,6 +3013,8 @@ function cargarParamInputs(){
   $('pMargen').value=dec(p.margen);
   $('pPropios').value=p.propios||'';
   $('pClientesOT').value=p.clientesOT||'';
+  $('pDrones').value=p.drones||'';
+  $('pTanqueMez').value=dec(p.tanqueMez);
   $('pCostoKm').value=dec(p.costoKm);
   $('pTargetHora').value=dec(p.targetHora);
   $('pTarifaDef').value=dec(p.tarifaAyDef);
@@ -2880,6 +3039,8 @@ function guardarParam(){
   p.margen=num($('pMargen').value)||0;
   p.propios=$('pPropios').value;
   p.clientesOT=$('pClientesOT').value;
+  p.drones=$('pDrones').value;
+  p.tanqueMez=num($('pTanqueMez').value)||300;
   p.costoKm=num($('pCostoKm').value)||0;
   p.targetHora=num($('pTargetHora').value)||200;
   const td=num($('pTarifaDef').value); p.tarifaAyDef = td==null ? 0 : td;
@@ -3225,7 +3386,7 @@ function exportCSV(){
     'Adyuvante 1','Dosis A1','Adyuvante 2','Dosis A2','Horas','Facturado','Cobrado','Key','Mes','Año','Operador','Ayudante',
     'Agua/ha','Agua total','Tancadas','Tanque L','Cant. total','Km','Gasoil',
     'Ancho (m)','Velocidad (km/h)','Gota (µm)','Ha/h teórica','OT','Sigue día anterior','Fecha cobro',
-    'Pago ayudante (US$)','Ayudante pagado'];
+    'Pago ayudante (US$)','Ayudante pagado','Drones','Drone 2','Ancho 2 (m)','Velocidad 2 (km/h)','Gota 2 (µm)'];
   const nuevos = S.trabajos.filter(t=>t.nuevo);
   const ts = nuevos.length?nuevos:S.trabajos;
   const rows = ts.map(t=>{
@@ -3237,9 +3398,11 @@ function exportCSV(){
       t.id, mesDe(t.fecha), t.fecha.slice(0,4), t.op, t.ay,
       t.agua, (t.agua&&t.ha)?+(t.agua*t.ha).toFixed(1):'', t.tancadas, t.maxTanque, t.cantTotal,
       t.km, t.km?+costoTraslado(t.km).toFixed(2):'',
-      t.ancho, t.vel, t.gota, (t.ancho&&t.vel)?+(t.ancho*t.vel/10).toFixed(2):'',
+      t.ancho, t.vel, t.gota, (t.ancho&&t.vel)?+haTeoDe(t).toFixed(2):'',
       t.ot||'', t.sigue?'SI':'', t.fechaCobro?t.fechaCobro.split('-').reverse().join('/'):'',
-      t.ay?pagoAyDe(t):'', t.ayPagado?(t.ayPagado==='antes'?'antes':t.ayPagado.split('-').reverse().join('/')):''].map(csvCell).join(';');
+      t.ay?pagoAyDe(t):'', t.ayPagado?(t.ayPagado==='antes'?'antes':t.ayPagado.split('-').reverse().join('/')):'',
+      dronesDe(t).join(' + '),
+      t.d2?t.d2.dron:'', t.d2?t.d2.ancho:'', t.d2?t.d2.vel:'', t.d2?t.d2.gota:''].map(csvCell).join(';');
   });
   dl(`trabajos_${hoyISO()}.csv`, [H.join(';'),...rows].join('\n'));
   if(nuevos.length){ nuevos.forEach(t=>t.nuevo=false); save(); updatePend(); }
@@ -3280,7 +3443,7 @@ function renderAll(){
   renderFechaChips(); renderSigue(); renderTipos(); renderClientes(); renderOT(); renderEst(); renderLote();
   renderKm();
   renderRecetas(); renderRecetasSimple(); renderSimpleDatalist(); renderDatalists();
-  renderProds(); renderPersonas(); renderModoTipo(); calcAll(); renderModoEdicion();
+  renderProds(); renderPersonas(); renderDrones(); renderFumi2(); renderModoTipo(); calcAll(); renderModoEdicion();
 }
 load(); resetF();
 var _recuperado = restoreDraft();     // si dejaste algo a medio cargar, vuelve
