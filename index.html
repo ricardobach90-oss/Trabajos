@@ -555,8 +555,12 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       <div class="lbl">Tu sueldo pretendido por año (USD)</div>
       <input type="text" inputmode="decimal" id="pSueldo" class="mb" oninput="guardarParam()">
       <div class="hint" style="margin-top:-8px;margin-bottom:14px">Lo que querés ganar vos por tu tiempo. Se suma al costo por hectárea como una línea aparte. Con 0 ves el negocio sin tu sueldo.</div>
-      <div class="lbl">Alquiler del dron (USD/ha)</div>
+      <div class="lbl" id="pAlqLbl">Alquiler del dron (USD/ha)</div>
       <input type="text" inputmode="decimal" id="pAlquiler" class="mb" oninput="guardarParam()">
+      <div id="pAlqDrones"></div>
+      <div class="lbl" id="pParteLbl">Con dos drones juntos: % de las ha que hace el P60</div>
+      <input type="text" inputmode="decimal" id="pParte2" class="mb" oninput="guardarParam()">
+      <div class="hint" style="margin-top:-8px;margin-bottom:14px">No anotás cuánto hizo cada drone: se supone este reparto para el alquiler (33% = el P60 hace la mitad que el P150).</div>
       <div class="lbl">Costos fijos mensuales extra (USD)</div>
       <input type="text" inputmode="decimal" id="pFijos" class="mb" oninput="guardarParam()">
       <div class="lbl">Margen que querés ganar (%)</div>
@@ -2959,14 +2963,15 @@ function renderNum(){
 // aparte para ver si el negocio te paga tu tiempo. Uso propio (Dubach) se valoriza al costo.
 function paramDef(){
   return { alquilerHa:1.5, margen:35, tarifas:{}, tarifaAyDef:1.5, costoKm:0.28, targetHora:200,
-           sueldoAnio:0, fijosMes:0, propios:'Dubach', clientesOT:'Nalmer, Cina Cina', drones:'P150, P60', tanqueMez:300 };
+           sueldoAnio:0, fijosMes:0, propios:'Dubach', clientesOT:'Nalmer, Cina Cina', drones:'P150, P60', tanqueMez:300,
+           alqDron:{P60:0.8}, parte2:33 };
 }
 function params(){
   if(!S.param) S.param = paramDef();
   const p=S.param, d=paramDef();
   if(p.alquilerHa===undefined) p.alquilerHa = 1.5;   // migración desde amortización
   if(!p.tarifas) p.tarifas = {};
-  ['tarifaAyDef','costoKm','targetHora','sueldoAnio','fijosMes','propios','clientesOT','drones','tanqueMez'].forEach(k=>{
+  ['tarifaAyDef','costoKm','targetHora','sueldoAnio','fijosMes','propios','clientesOT','drones','tanqueMez','alqDron','parte2'].forEach(k=>{
     if(p[k]===undefined) p[k]=d[k];
   });
   return p;
@@ -3015,6 +3020,17 @@ function cargarParamInputs(){
   $('pClientesOT').value=p.clientesOT||'';
   $('pDrones').value=p.drones||'';
   $('pTanqueMez').value=dec(p.tanqueMez);
+  const fl=flota();
+  $('pAlqLbl').textContent = 'Alquiler del '+(fl[0]||'dron')+' (USD/ha)';
+  $('pParteLbl').textContent = 'Con dos drones juntos: % de las ha que hace el '+(fl[1]||'segundo drone');
+  $('pParte2').value=dec(p.parte2);
+  $('pAlqDrones').innerHTML = fl.slice(1).map(d=>
+    `<div class="kv"><span class="k">Alquiler del ${esc(d)}</span>
+      <span style="display:flex;align-items:center;gap:6px">
+        <input type="text" inputmode="decimal" style="width:80px;text-align:right" value="${dec(alqDe(d))}"
+               oninput="setAlqDron(${esc(JSON.stringify(d))}, this.value)">
+        <span style="font-size:12px;color:var(--dim)">USD/ha</span></span></div>`).join('')
+    + (fl.length>1?'<div style="height:12px"></div>':'');
   $('pCostoKm').value=dec(p.costoKm);
   $('pTargetHora').value=dec(p.targetHora);
   $('pTarifaDef').value=dec(p.tarifaAyDef);
@@ -3027,6 +3043,15 @@ function cargarParamInputs(){
                oninput="setTarifa(${esc(JSON.stringify(n))}, this.value)">
         <span style="font-size:12px;color:var(--dim)">USD/ha</span></span></div>`).join('')
     || '<div class="hint">Todavía no hay ayudantes cargados</div>';
+}
+// alquiler por ha de cada drone; con dos juntos se reparte con "parte2" (el segundo hace esa parte)
+function alqDe(d){ const p=params(); const v=p.alqDron?p.alqDron[d]:undefined; return (v===undefined||v===null)?(p.alquilerHa||0):v; }
+function setAlqDron(d, v){ const p=params(); p.alqDron=p.alqDron||{}; p.alqDron[d]=num(v)||0; save(); renderCostos(); }
+function alquilerHaDe(t){
+  const ds=dronesDe(t), f=(params().parte2??33)/100;
+  if(ds.length===1) return alqDe(ds[0]);
+  if(ds.length===2) return (1-f)*alqDe(ds[0]) + f*alqDe(ds[1]);
+  return ds.reduce((a,d)=>a+alqDe(d),0)/ds.length;
 }
 function setTarifa(nombre, v){
   const p=params(); p.tarifas[nombre] = num(v)||0; save(); renderCostos(); renderAyud();
@@ -3041,6 +3066,7 @@ function guardarParam(){
   p.clientesOT=$('pClientesOT').value;
   p.drones=$('pDrones').value;
   p.tanqueMez=num($('pTanqueMez').value)||300;
+  const pp=num($('pParte2').value); p.parte2 = pp==null ? 33 : pp;
   p.costoKm=num($('pCostoKm').value)||0;
   p.targetHora=num($('pTargetHora').value)||200;
   const td=num($('pTarifaDef').value); p.tarifaAyDef = td==null ? 0 : td;
@@ -3096,11 +3122,10 @@ function setDistanciaIdx(i, val){
 }
 function modeloCostos(){
   const p = params();
-  const alquilerHa = p.alquilerHa||0;
 
   // por MES: gastos (USD) y hectáreas. El costo operativo se mide solo en los meses
   // que tienen gastos cargados, así el hueco de meses sin datos no ensucia el número.
-  const gastoMes={}, haMes={}, haAnio={}, ingAnio={}, haFactAnio={}, haPropAnio={}, ayudAnio={}, mesesAnio={};
+  const gastoMes={}, haMes={}, haAnio={}, ingAnio={}, haFactAnio={}, haPropAnio={}, ayudAnio={}, mesesAnio={}, alqAnio={};
   const marcaMes = (mes)=>{ const a=mes.slice(0,4); (mesesAnio[a]=mesesAnio[a]||{})[mes]=1; };
   S.gastos.forEach(g=>{
     const mes=g.fecha.slice(0,7);
@@ -3117,6 +3142,7 @@ function modeloCostos(){
     else if(t.ha && t.precio){ ingAnio[a]=(ingAnio[a]||0)+t.ha*t.precio; haFactAnio[a]=(haFactAnio[a]||0)+t.ha; }
     const tar = t.ay ? tarifaAyudante(t.ay, t.tipo) : 0;   // plena en siembra/fert, mitad en el resto
     if(tar && t.ha) ayudAnio[a]=(ayudAnio[a]||0)+tar*t.ha;
+    alqAnio[a]=(alqAnio[a]||0)+ha*alquilerHaDe(t);     // según con qué drones se hizo
   });
 
   // meses con gastos cargados (de cualquier año)
@@ -3142,6 +3168,7 @@ function modeloCostos(){
   }
   // pago a ayudantes: promedio del año de referencia (es una tarifa conocida)
   const ayudHa = haRef ? (ayudAnio[anioRef]||0)/haRef : 0;
+  const alquilerHa = haRef ? (alqAnio[anioRef]||0)/haRef : (p.alquilerHa||0);   // promedio del año
   const fijosRef  = (p.fijosMes||0) * mesesCal;
   const sueldoRef = (p.sueldoAnio||0) * mesesCal / 12;
   const fijosHa  = haRef ? fijosRef/haRef : 0;
@@ -3196,7 +3223,7 @@ function renderCostos(){
   let html='';
   html += fila('Costo operativo', m.operHa!==null
     ? `$${m.operHa.toFixed(2)}/ha` : 'sin gastos cargados');
-  html += fila('Alquiler del dron', `$${m.alquilerHa.toFixed(2)}/ha`);
+  html += fila('Alquiler del dron <span style="font-size:12px">(promedio según drones)</span>', `$${m.alquilerHa.toFixed(2)}/ha`);
   if(m.ayudHa>0) html += fila('Pago a ayudantes', `$${m.ayudHa.toFixed(2)}/ha`);
   if(m.fijosHa>0) html += fila('Fijos extra', `$${m.fijosHa.toFixed(2)}/ha`);
   html += fila('= Costo del negocio <span style="font-weight:500;color:var(--dim)">(sin tu sueldo)</span>',
