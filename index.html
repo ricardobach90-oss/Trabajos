@@ -763,13 +763,16 @@ function migrarV3(){
     S.trabajos.forEach(t=>{ if(t.ay && t.fecha<'2026-10-01' && !t.ayPagado) t.ayPagado='antes'; });
     S.ayInit=true; cambio=true;
   }
-  // 3) noviembre 2026: trabajos de clientes a los que no se les factura → "no se factura"
-  if(!S.migNF){
+  // 3) noviembre 2026: TODOS los trabajos de clientes a los que no se les factura → "no se factura",
+  //    aunque figuren como facturados ("Cobrar todo" los marcaba facturados al cobrarlos)
+  if(!S.migNF2){
     let n=0;
     S.trabajos.forEach(t=>{
-      if(!t.fact && !seFactura(t.cliente)){ t.nf=true; n++; if(t.enPlanilla) t.sync=null; }
+      if(seFactura(t.cliente) || (t.nf && !t.fact)) return;
+      t.nf=true; t.fact=false; n++;
+      if(t.enPlanilla) t.sync=null;          // se corrige también la fila de la planilla
     });
-    S.migNF=true; cambio=true; migNFn=n;
+    S.migNF=true; S.migNF2=true; cambio=true; migNFn=n;
   }
   if(cambio) save();
 }
