@@ -536,6 +536,10 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
     <div id="numTipos"></div>
   </div>
   <div class="card">
+    <div class="lbl">🧾 Pendiente de facturar</div>
+    <div id="numFacturar"></div>
+  </div>
+  <div class="card">
     <div class="lbl">💵 Pendiente de cobro <span style="text-transform:none;font-weight:600">(todos los meses)</span></div>
     <div id="numCobrar"></div>
   </div>
@@ -571,6 +575,9 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       <div class="lbl">Clientes que trabajan con OT</div>
       <input type="text" id="pClientesOT" class="mb" placeholder="Nalmer, Cina Cina" oninput="guardarParam()">
       <div class="hint" style="margin-top:-8px;margin-bottom:14px">Con estos clientes la app te recuerda cargar el número de orden de trabajo. Separados con coma.</div>
+      <div class="lbl">Clientes a los que les facturás</div>
+      <input type="text" id="pClientesFactura" class="mb" placeholder="Nalmer, Cina Cina, Ingral, Marvin" oninput="guardarParam()">
+      <div class="hint" style="margin-top:-8px;margin-bottom:14px">A los demás clientes no se les factura: sus trabajos nuevos quedan como "no se factura" (solo falta cobrarlos). En cada trabajo se puede cambiar. Separados con coma.</div>
       <div class="lbl">Tanque mezclador (L)</div>
       <input type="text" inputmode="decimal" id="pTanqueMez" class="mb" oninput="guardarParam()">
       <div class="hint" style="margin-top:-8px;margin-bottom:14px">Capacidad máxima del tanque donde preparás la tancada. Se pone sola en "Tanque máx." al fumigar.</div>
@@ -756,8 +763,17 @@ function migrarV3(){
     S.trabajos.forEach(t=>{ if(t.ay && t.fecha<'2026-10-01' && !t.ayPagado) t.ayPagado='antes'; });
     S.ayInit=true; cambio=true;
   }
+  // 3) noviembre 2026: trabajos de clientes a los que no se les factura → "no se factura"
+  if(!S.migNF){
+    let n=0;
+    S.trabajos.forEach(t=>{
+      if(!t.fact && !seFactura(t.cliente)){ t.nf=true; n++; if(t.enPlanilla) t.sync=null; }
+    });
+    S.migNF=true; cambio=true; migNFn=n;
+  }
   if(cambio) save();
 }
+var migNFn=0;
 function save(){ try{ localStorage.setItem(K, JSON.stringify(S)); }catch(e){ toast('Sin espacio para guardar','err'); } }
 function uid(){ return Math.random().toString(36).slice(2,10); }
 
@@ -917,6 +933,14 @@ function cantidadTotal(dosis, ha, unidad){
 function listaParam(s){ return String(s||'').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean); }
 function esPropio(cli){ return !!cli && listaParam(params().propios).includes(String(cli).trim().toLowerCase()); }
 // el cliente trabaja con OT: está en la lista de parámetros o ya le cargaste alguna OT antes
+// al cliente se le factura (Nalmer, Cina Cina…). A los demás (Alvaro, Manuel…) no: sus trabajos van con t.nf
+function seFactura(cli){
+  if(!cli) return true;
+  const c = String(cli).toLowerCase();
+  return listaParam(params().clientesFactura).some(x=>c===x || c.includes(x));
+}
+// le falta la factura (y sí se le factura)
+function porFacturar(t){ return !t.fact && !t.nf; }
 function usaOT(cli){
   if(!cli) return false;
   const c = String(cli).toLowerCase();
@@ -1693,7 +1717,7 @@ function guardarTrabajo(){
     prods: F.prods.filter(p=>p.n).map(p=>({n:p.n.trim(),d:p.d})),
     // los adyuvantes se guardan SIEMPRE en dosis/ha (la planilla y el histórico así lo esperan)
     adys:  simple ? [] : F.adys.filter(p=>p.n).map(p=>({n:p.n.trim(),d:+dosisHaDe(p,true,caldoF).toFixed(4)})),
-    horas: num($('fHoras').value), fact:false, cobr:false,
+    horas: num($('fHoras').value), fact:false, cobr:false, nf: !seFactura(F.cliente),
     agua: simple ? null : F.agua,
     tancadas: simple ? null : F.tancadas,
     maxTanque: simple ? null : F.maxTanque,
@@ -1713,6 +1737,8 @@ function guardarTrabajo(){
   };
 
   const editando = F.editId ? S.trabajos.find(x=>x.id===F.editId) : null;
+  // al editar se respeta lo que tenía, salvo que le cambies el cliente
+  if(editando && editando.cliente===t.cliente) t.nf = !!editando.nf;
   if(editando){
     // conservamos id, estado de cobro y marca de exportación; el resto se reemplaza
     Object.assign(editando, t, {
@@ -1915,7 +1941,7 @@ function renderHist(){
   const mesAct = hoyISO().slice(0,7);
   let ts = S.trabajos.slice().reverse();
   if(histFiltro==='cobrar') ts=ts.filter(t=>!t.cobr);
-  if(histFiltro==='facturar') ts=ts.filter(t=>!t.fact);
+  if(histFiltro==='facturar') ts=ts.filter(porFacturar);
   if(histFiltro==='mes') ts=ts.filter(t=>t.fecha.slice(0,7)===mesAct);
   if(q) ts=ts.filter(t=>[t.cliente,t.est,t.lote,t.tipo,t.ay,t.ot?'ot '+t.ot+' ot'+t.ot:'',
       ...(t.prods||[]).map(p=>p.n),...(t.adys||[]).map(p=>p.n)]
@@ -1948,13 +1974,27 @@ function verDetalle(id){
       <div class="stat"><div class="v">${tot?'$'+fmt(tot):'—'}</div><div class="k">total ${t.precio?'· $'+t.precio+'/ha':''}</div></div>
     </div>
     <div class="row mb">
-      <button class="chip${t.fact?' on':''}" style="justify-content:center" onclick="tog('${t.id}','fact')">
-        ${t.fact?'✓ Facturado':'Facturado'}</button>
+      ${t.nf?`<button class="chip on" style="justify-content:center" onclick="tog('${t.id}','nf')">✓ No se factura</button>`
+        :`<button class="chip${t.fact?' on':''}" style="justify-content:center" onclick="tog('${t.id}','fact')">
+        ${t.fact?'✓ Facturado':'Facturado'}</button>`}
       <button class="chip${t.cobr?' on':''}" style="justify-content:center" onclick="tog('${t.id}','cobr')">
         ${t.cobr?'✓ Cobrado':'Cobrado'}</button>
     </div>
+    ${!t.nf&&!t.fact?`<div class="hint" style="margin:-6px 0 12px"><a href="#" style="color:var(--dim)" onclick="tog('${t.id}','nf');return false">Este trabajo no se factura</a></div>`
+      :(t.nf?`<div class="hint" style="margin:-6px 0 12px">${esc(t.cliente)} no se factura. Tocá el chip si este sí lleva factura.</div>`:'')}
     ${t.cobr&&t.fechaCobro?`<div class="hint" style="margin:-6px 0 12px">Cobrado el ${t.fechaCobro.split('-').reverse().join('/')}</div>`:''}
-    ${pendCli>1?`<button class="btn cobrar sm mb" onclick="abrirCobrar(${esc(JSON.stringify(t.cliente))})">💵 Cobrar todo lo de ${esc(t.cliente)} (${pendCli} pendientes)</button>`:''}
+    ${(()=>{ const pf=porFacturarDe(t.cliente).length, cli=esc(JSON.stringify(t.cliente));
+      let b='';
+      if(pf>1) b+=`<button class="btn ghost sm mb" onclick="abrirCobrar(${cli},'facturar')">🧾 Facturar todo lo de ${esc(t.cliente)} (${pf} sin facturar)</button>`;
+      if(pendCli>1) b+=`<button class="btn cobrar sm mb" onclick="abrirCobrar(${cli})">💵 Cobrar todo lo de ${esc(t.cliente)} (${pendCli} pendientes)</button>`;
+      if(t.ot){
+        const ot=esc(JSON.stringify(t.ot));
+        const fOT=porFacturarDe(t.cliente).filter(x=>x.ot===t.ot).length, cOT=pendientesDe(t.cliente).filter(x=>x.ot===t.ot).length;
+        if(fOT||cOT) b+=`<div class="row mb">
+          ${fOT?`<button class="btn ghost sm" onclick="abrirCobrar(${cli},'facturar',${ot})">🧾 Facturar OT ${esc(t.ot)} (${fOT})</button>`:''}
+          ${cOT?`<button class="btn ghost sm" onclick="abrirCobrar(${cli},'cobrar',${ot})">💵 Cobrar OT ${esc(t.ot)} (${cOT})</button>`:''}</div>`;
+      }
+      return b; })()}
     ${items.length?`<div class="card tight"><div class="lbl">Mezcla</div>${items.map(p=>{
       const un = unidadDe(p.n, t.tipo, p.ady);
       const tot = (p.d&&t.ha) ? cantidadTotal(p.d, t.ha, un) : null;
@@ -1993,6 +2033,8 @@ function verDetalle(id){
 function tog(id,k){
   const t=S.trabajos.find(x=>x.id===id); if(!t) return;
   t[k]=!t[k];
+  if(k==='nf' && t.nf) t.fact=false;           // no se factura ↔ facturado no van juntos
+  if(k==='fact' && t.fact) t.nf=false;
   if(k==='cobr') t.fechaCobro = t.cobr ? hoyISO() : '';
   t.sync=null;
   save(); verDetalle(id); renderHist(); updateSyncPill(); sincronizar();
@@ -2030,54 +2072,67 @@ function borrarTrabajo(id){
 /* ================= COBRAR TODO LO DE UN CLIENTE ================= */
 // lista todos los trabajos sin cobrar del cliente (de cualquier mes), todos marcados;
 // destildás los que no entran en el pago y los marcás cobrados de una.
-var cobrCli=null, cobrSel=new Set();
+// la misma hoja sirve para cobrar (lo no cobrado) y para facturar (lo sin factura de clientes que facturan).
+// Con una OT, arranca marcando solo los trabajos de esa OT.
+var cobrCli=null, cobrSel=new Set(), cobrModo='cobrar';
 function pendientesDe(cli){
   return S.trabajos.filter(t=>t.cliente===cli && !t.cobr)
     .sort((a,b)=> a.fecha<b.fecha?-1:(a.fecha>b.fecha?1:0));
 }
-function abrirCobrar(cli){
-  cobrCli=cli;
-  cobrSel=new Set(pendientesDe(cli).map(t=>t.id));
+function porFacturarDe(cli){
+  return S.trabajos.filter(t=>t.cliente===cli && porFacturar(t))
+    .sort((a,b)=> a.fecha<b.fecha?-1:(a.fecha>b.fecha?1:0));
+}
+function listaCobr(){ return cobrModo==='facturar' ? porFacturarDe(cobrCli) : pendientesDe(cobrCli); }
+function cobrOT(ot){ cobrSel = new Set(listaCobr().filter(t=>t.ot===ot).map(t=>t.id)); renderCobrar(); }
+function abrirCobrar(cli, modo, ot){
+  cobrCli=cli; cobrModo = modo || 'cobrar';
+  cobrSel=new Set(listaCobr().filter(t=>!ot || t.ot===ot).map(t=>t.id));
   renderCobrar();
   $('shDetalle').classList.add('on');
   const p=$('shDetalle').firstElementChild; if(p) p.scrollTop=0;
 }
 function cobrTog(id){ if(cobrSel.has(id)) cobrSel.delete(id); else cobrSel.add(id); renderCobrar(); }
-function cobrTodos(si){ cobrSel = si ? new Set(pendientesDe(cobrCli).map(t=>t.id)) : new Set(); renderCobrar(); }
+function cobrTodos(si){ cobrSel = si ? new Set(listaCobr().map(t=>t.id)) : new Set(); renderCobrar(); }
 function renderCobrar(){
-  const ts=pendientesDe(cobrCli);
+  const ts=listaCobr(), fac = cobrModo==='facturar';
+  const otsTodas=[...new Set(ts.map(t=>t.ot).filter(Boolean))];
   const tot=t=>(t.ha&&t.precio)?t.ha*t.precio:0;
   const sel=ts.filter(t=>cobrSel.has(t.id));
   const suma=sel.reduce((a,t)=>a+tot(t),0);
   const ots=[...new Set(sel.map(t=>t.ot).filter(Boolean))];
   const n=sel.length;
   $('detalleBody').innerHTML = `
-    <h3>💵 Cobrar · ${esc(cobrCli)}</h3>
-    <div class="hint" style="margin:-10px 0 12px">Están marcados todos los pendientes. Destildá los que no entran en este pago.</div>
+    <h3>${fac?'🧾 Facturar':'💵 Cobrar'} · ${esc(cobrCli)}</h3>
+    <div class="hint" style="margin:-10px 0 12px">${fac?'Trabajos sin factura. Destildá los que no van en esta factura.':'Destildá los que no entran en este pago.'}</div>
     ${ts.length?`<div class="row mb">
       <button class="chip sm" style="justify-content:center" onclick="cobrTodos(true)">Marcar todos</button>
       <button class="chip sm" style="justify-content:center" onclick="cobrTodos(false)">Ninguno</button></div>`:''}
+    ${otsTodas.length?`<div class="lbl">Solo una OT</div><div class="chips mb">${otsTodas.map(o=>
+      `<button class="chip sm" onclick="cobrOT(${esc(JSON.stringify(o))})">OT ${esc(o)}</button>`).join('')}</div>`:''}
     ${ts.map(t=>{
       const on=cobrSel.has(t.id);
       return `<div class="item${on?' sel':''}" onclick="cobrTog('${t.id}')">
         <div class="ck">${on?'✓':''}</div>
-        <div class="l"><div class="t1">${fechaCorta(t.fecha)} · ${esc(t.tipo)}${t.ot?`<span class="tag ot">OT ${esc(t.ot)}</span>`:''}${t.fact?'':'<span class="tag no">sin facturar</span>'}</div>
+        <div class="l"><div class="t1">${fechaCorta(t.fecha)} · ${esc(t.tipo)}${t.ot?`<span class="tag ot">OT ${esc(t.ot)}</span>`:''}${(!fac && porFacturar(t))?'<span class="tag no">sin facturar</span>':''}</div>
           <div class="t2">${esc([t.est,t.lote].filter(Boolean).join(' / ')||'—')}</div></div>
         <div class="r"><div class="amt">${tot(t)?'$'+fmt(tot(t)):'sin precio'}</div>
           <div class="dt">${fmtHa(t.ha)} ha</div></div></div>`;
-    }).join('') || '<div class="empty">No hay nada pendiente de cobro</div>'}
+    }).join('') || `<div class="empty">${fac?'No hay nada sin facturar':'No hay nada pendiente de cobro'}</div>`}
     ${ts.length?`<div class="kv big"><span class="k">${n} trabajo${n===1?'':'s'}${ots.length?' · OT '+esc(ots.join(', ')):''}</span>
       <span class="v">$${fmt(suma)}</span></div>
-    <button class="btn mb" onclick="marcarSel(true)" ${n?'':'disabled'}>✓ Marcar como cobrados</button>
-    <button class="btn ghost sm mb" onclick="marcarSel(false)" ${n?'':'disabled'}>Solo marcar como facturados</button>`:''}
+    ${fac?`<button class="btn mb" onclick="marcarSel(false)" ${n?'':'disabled'}>🧾 Marcar como facturados</button>
+      <button class="btn ghost sm mb" onclick="closeSheet();abrirReporte(${esc(JSON.stringify(cobrCli))},'sinfacturar')">📄 Reporte de lo sin facturar</button>`
+    :`<button class="btn mb" onclick="marcarSel(true)" ${n?'':'disabled'}>✓ Marcar como cobrados</button>
+    ${sel.some(porFacturar)?`<button class="btn ghost sm mb" onclick="marcarSel(false)" ${n?'':'disabled'}>Solo marcar como facturados</button>`:''}`}`:''}
     <button class="btn ghost" onclick="closeSheet()">Cerrar</button>`;
 }
 function marcarSel(cobrar){
-  const ts=pendientesDe(cobrCli).filter(t=>cobrSel.has(t.id));
+  const ts=listaCobr().filter(t=>cobrSel.has(t.id));
   if(!ts.length) return;
   const hoy=hoyISO(); let suma=0;
   ts.forEach(t=>{
-    t.fact=true;
+    if(!t.nf) t.fact=true;                 // los que no se facturan siguen sin factura
     if(cobrar){ t.cobr=true; t.fechaCobro=hoy; }
     t.sync=null;                           // se manda a la planilla para actualizar la fila
     suma += (t.ha&&t.precio)?t.ha*t.precio:0;
@@ -2085,7 +2140,7 @@ function marcarSel(cobrar){
   save(); updateSyncPill(); sincronizar();
   toast(cobrar ? `${ts.length} trabajo${ts.length===1?'':'s'} cobrado${ts.length===1?'':'s'} · $${fmt(suma)}`
                : `${ts.length} marcado${ts.length===1?'':'s'} como facturado${ts.length===1?'':'s'}`);
-  if(cobrar) closeSheet(); else renderCobrar();
+  if(cobrar || cobrModo==='facturar') closeSheet(); else renderCobrar();
   renderHist();
   if($('v-num').classList.contains('on')) renderNum();
 }
@@ -2507,9 +2562,10 @@ function repCampos(){
   }
   return S.repCampos;
 }
-function abrirReporte(cli){
+function abrirReporte(cli, estado){
   repCampos();
-  REP = { cli: cli||'', est:'', tipos:[], desde:'', hasta:'', estado:'todos', excl:{}, titulo:'', verCampos:false };
+  REP = { cli: cli||'', est:'', tipos:[], desde:'', hasta:'', estado:estado||'todos', excl:{},
+          titulo: estado==='sinfacturar' ? 'Trabajos sin facturar' : '', verCampos:false };
   renderReporte();
   $('shDetalle').classList.add('on');
   const p=$('shDetalle').firstElementChild; if(p) p.scrollTop=0;
@@ -2522,7 +2578,8 @@ function repTrabajos(){
     if(REP.desde && t.fecha<REP.desde) return false;
     if(REP.hasta && t.fecha>REP.hasta) return false;
     if(REP.estado==='sincobrar' && t.cobr) return false;
-    if(REP.estado==='sinfacturar' && t.fact) return false;
+    if(REP.estado==='sinfacturar' && !porFacturar(t)) return false;
+    if(REP.estado==='nofactura' && !t.nf) return false;
     if(REP.estado==='cobrados' && !t.cobr) return false;
     return true;
   }).sort((a,b)=> a.fecha<b.fecha?-1:(a.fecha>b.fecha?1:0));
@@ -2564,6 +2621,7 @@ function renderReporte(){
       ${chip(REP.estado==='todos','Todos',"repSet('estado','todos')")}
       ${chip(REP.estado==='sincobrar','Sin cobrar',"repSet('estado','sincobrar')")}
       ${chip(REP.estado==='sinfacturar','Sin facturar',"repSet('estado','sinfacturar')")}
+      ${chip(REP.estado==='nofactura','No se facturan',"repSet('estado','nofactura')")}
       ${chip(REP.estado==='cobrados','Cobrados',"repSet('estado','cobrados')")}
     </div>
     <div class="divide"></div>
@@ -2644,8 +2702,10 @@ function htmlReporte(){
     }
     if(c.rCobro){
       const cob=ts.filter(t=>t.cobr).reduce((a,t)=>a+tot(t),0), fac=ts.filter(t=>t.fact&&!t.cobr).reduce((a,t)=>a+tot(t),0);
-      res += `<h2>Cobro</h2>`+tabla(['Estado','Total'],[['Cobrado','$'+fmt(cob)],['Facturado, sin cobrar','$'+fmt(fac)],
-        ['Sin facturar','$'+fmt(totPlata-cob-fac)]],[0,1]);
+      const nfc=ts.filter(t=>t.nf&&!t.cobr).reduce((a,t)=>a+tot(t),0);
+      const filasC=[['Cobrado','$'+fmt(cob)],['Facturado, sin cobrar','$'+fmt(fac)],['Sin facturar','$'+fmt(totPlata-cob-fac-nfc)]];
+      if(nfc) filasC.push(['No se factura, sin cobrar','$'+fmt(nfc)]);
+      res += `<h2>Cobro</h2>`+tabla(['Estado','Total'],filasC,[0,1]);
     }
     if(c.rOT){
       const ots={}; ts.filter(t=>t.ot).forEach(t=>{ const x=ots[t.ot]||(ots[t.ot]={ha:0,$:0,n:0}); x.n++; x.ha+=t.ha||0; x.$+=tot(t); });
@@ -2681,7 +2741,7 @@ function htmlReporte(){
     + (t.d2?'<br>'+esc(t.d2.dron)+': '+[t.d2.ancho!=null?dec(t.d2.ancho)+' m':'',t.d2.vel!=null?dec(t.d2.vel)+' km/h':''].filter(Boolean).join(' · '):''));
   add('horas','Horas',t=>t.horas?dec(t.horas):'—',1);
   add('ayudante','Ayudante',t=>esc(t.ay||'—'));
-  add('estado','Estado',t=>t.cobr?'Cobrado':(t.fact?'Facturado':'Pendiente'));
+  add('estado','Estado',t=>t.cobr?'Cobrado':(t.fact?'Facturado':(t.nf?'Sin factura':'Pendiente')));
   add('drones','Drones',t=>esc(dronesDe(t).join(' + ')));
   add('km','Km',t=>t.km!=null?dec(t.km):(t.sigue||t.est?'—':'—'),1);
   const det = c.secDet && cols.length ? `<h2>Detalle de los trabajos</h2>
@@ -2933,6 +2993,17 @@ function renderNum(){
       <span style="display:flex;align-items:center;gap:10px;flex:none"><b style="color:var(--warn)">$${fmt(v.$)}</b>
         <button class="chip sm" style="min-height:36px;padding:6px 12px" onclick="abrirCobrar(${esc(JSON.stringify(k))})">Cobrar…</button></span></div>`).join('')
     || '<div class="hint" style="color:var(--accent)">✓ Todo cobrado</div>';
+  // pendiente de facturar: solo clientes a los que se les factura
+  const pf={};
+  S.trabajos.filter(t=>porFacturar(t)).forEach(t=>{
+    const x=pf[t.cliente]||(pf[t.cliente]={$:0,n:0}); x.$+=tot(t); x.n++; });
+  $('numFacturar').innerHTML = Object.entries(pf).sort((a,b)=>b[1].$-a[1].$).map(([k,v])=>
+    `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;font-size:15.5px;border-bottom:1px solid var(--line)">
+      <span style="min-width:0">${esc(k)} <span style="font-size:12px;color:var(--dim)">${v.n} trabajo${v.n===1?'':'s'}</span></span>
+      <span style="display:flex;align-items:center;gap:10px;flex:none"><b>$${fmt(v.$)}</b>
+        <button class="chip sm" style="min-height:36px;padding:6px 12px" onclick="abrirCobrar(${esc(JSON.stringify(k))},'facturar')">Facturar…</button></span></div>`).join('')
+    + (Object.keys(pf).length?`<button class="btn ghost sm" style="margin-top:10px" onclick="abrirReporte('','sinfacturar')">📄 Reporte de todo lo sin facturar</button>`:'')
+    || '<div class="hint" style="color:var(--accent)">✓ Todo facturado</div>';
   renderAyud();
   const cli={};
   ts.forEach(t=>{ cli[t.cliente]=cli[t.cliente]||{ha:0,$:0}; cli[t.cliente].ha+=t.ha||0; cli[t.cliente].$+=tot(t); });
@@ -2963,7 +3034,7 @@ function renderNum(){
 // aparte para ver si el negocio te paga tu tiempo. Uso propio (Dubach) se valoriza al costo.
 function paramDef(){
   return { alquilerHa:1.5, margen:35, tarifas:{}, tarifaAyDef:1.5, costoKm:0.28, targetHora:200,
-           sueldoAnio:0, fijosMes:0, propios:'Dubach', clientesOT:'Nalmer, Cina Cina', drones:'P150, P60', tanqueMez:300,
+           sueldoAnio:0, fijosMes:0, propios:'Dubach', clientesOT:'Nalmer, Cina Cina', clientesFactura:'Nalmer, Cina Cina, Ingral, Marvin', drones:'P150, P60', tanqueMez:300,
            alqDron:{P60:0.8}, parte2:33 };
 }
 function params(){
@@ -2971,7 +3042,7 @@ function params(){
   const p=S.param, d=paramDef();
   if(p.alquilerHa===undefined) p.alquilerHa = 1.5;   // migración desde amortización
   if(!p.tarifas) p.tarifas = {};
-  ['tarifaAyDef','costoKm','targetHora','sueldoAnio','fijosMes','propios','clientesOT','drones','tanqueMez','alqDron','parte2'].forEach(k=>{
+  ['tarifaAyDef','costoKm','targetHora','sueldoAnio','fijosMes','propios','clientesOT','clientesFactura','drones','tanqueMez','alqDron','parte2'].forEach(k=>{
     if(p[k]===undefined) p[k]=d[k];
   });
   return p;
@@ -3018,6 +3089,7 @@ function cargarParamInputs(){
   $('pMargen').value=dec(p.margen);
   $('pPropios').value=p.propios||'';
   $('pClientesOT').value=p.clientesOT||'';
+  $('pClientesFactura').value=p.clientesFactura||'';
   $('pDrones').value=p.drones||'';
   $('pTanqueMez').value=dec(p.tanqueMez);
   const fl=flota();
@@ -3064,6 +3136,7 @@ function guardarParam(){
   p.margen=num($('pMargen').value)||0;
   p.propios=$('pPropios').value;
   p.clientesOT=$('pClientesOT').value;
+  p.clientesFactura=$('pClientesFactura').value;
   p.drones=$('pDrones').value;
   p.tanqueMez=num($('pTanqueMez').value)||300;
   const pp=num($('pParte2').value); p.parte2 = pp==null ? 33 : pp;
@@ -3421,7 +3494,7 @@ function exportCSV(){
     return [t.fecha.split('-').reverse().join('/'), t.tipo, t.cliente, t.est, t.lote, t.ha, t.precio,
       (t.ha&&t.precio)?+(t.ha*t.precio).toFixed(2):'', t.viento, t.caldo,
       p[0]?.n,p[0]?.d,p[1]?.n,p[1]?.d,p[2]?.n,p[2]?.d,p[3]?.n,p[3]?.d,
-      a[0]?.n,a[0]?.d,a[1]?.n,a[1]?.d, t.horas, t.fact?'TRUE':'FALSE', t.cobr?'TRUE':'FALSE',
+      a[0]?.n,a[0]?.d,a[1]?.n,a[1]?.d, t.horas, t.fact?'TRUE':(t.nf?'NO SE FACTURA':'FALSE'), t.cobr?'TRUE':'FALSE',
       t.id, mesDe(t.fecha), t.fecha.slice(0,4), t.op, t.ay,
       t.agua, (t.agua&&t.ha)?+(t.agua*t.ha).toFixed(1):'', t.tancadas, t.maxTanque, t.cantTotal,
       t.km, t.km?+costoTraslado(t.km).toFixed(2):'',
@@ -3480,6 +3553,7 @@ updatePend();
 renderCrono();
 initSwipeSheets();
 if(_recuperado) toast('Recuperé lo que estabas cargando');
+else if(migNFn) toast(`Ordené ${migNFn} trabajos viejos como "no se factura"`);
 pedirPersistencia();
 updateSyncPill(); renderSync(); chequearBackup();
 if(S.syncUrl) sincronizar();
