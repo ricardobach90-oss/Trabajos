@@ -590,6 +590,11 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
       <div class="lbl">Tarifa de cada ayudante</div>
       <div id="pTarifas"></div>
       <div class="hint" style="margin-top:6px">En siembra y fertilización se paga esta tarifa completa. En los demás trabajos (fumigar, cebo…) se paga la mitad.</div>
+      <div class="lbl" style="margin-top:12px">Siembra y fertilización con dosis alta</div>
+      <div class="row mb">
+        <div><div class="hint" style="margin:0 0 4px">Más de (kg/ha)</div><input type="text" inputmode="decimal" id="pAyAltaKg" oninput="guardarParam()"></div>
+        <div><div class="hint" style="margin:0 0 4px">Se paga (USD/ha)</div><input type="text" inputmode="decimal" id="pAyAlta" oninput="guardarParam()"></div>
+      </div>
       <div class="divide"></div>
       <div class="lbl">Costo del vehículo por km (USD)</div>
       <input type="text" inputmode="decimal" id="pCostoKm" class="mb" oninput="guardarParam()">
@@ -773,6 +778,12 @@ function migrarV3(){
       if(t.enPlanilla) t.sync=null;          // se corrige también la fila de la planilla
     });
     S.migNF=true; S.migNF2=true; cambio=true; migNFn=n;
+  }
+  // 4) tarifa de dosis alta (desde 16/11/2026): los trabajos sin pagar que la usan se reenvían
+  //    para que la planilla tenga el pago nuevo
+  if(!S.migAyAlta){
+    S.trabajos.forEach(t=>{ if(t.ay && !t.ayPagado && esDosisAlta(t) && t.enPlanilla) t.sync=null; });
+    S.migAyAlta=true; cambio=true;
   }
   if(cambio) save();
 }
@@ -2177,7 +2188,7 @@ function renderAyud(){
         <b style="color:${r.$>0?'var(--warn)':'var(--accent)'}">US$${fmt(r.$,2)}</b>
         <button class="chip sm" style="min-height:36px;padding:6px 12px" onclick="abrirAyud(${esc(JSON.stringify(n))})">${r.n?'Ver / pagar':'Ver'}</button></span></div>`;
   }).join('') || '<div class="hint">Todavía no hay trabajos con ayudante.</div>';
-  cont.innerHTML += `<div class="hint" style="margin-top:9px">Tarifa: siembra y fertilización US$${dec(params().tarifaAyDef)}/ha, fumigación y cebo la mitad. Se cambia en ⚙ Ajustar parámetros.</div>`;
+  cont.innerHTML += `<div class="hint" style="margin-top:9px">Tarifa: siembra y fertilización US$${dec(params().tarifaAyDef)}/ha${' · más de '+dec(params().ayAltaKg)+' kg/ha US$'+dec(params().ayAlta)+'/ha'}, fumigación y cebo la mitad. Se cambia en ⚙ Ajustar parámetros.</div>`;
 }
 function abrirAyud(nombre){
   ayNom=nombre; ayVerPagados=false;
@@ -2199,7 +2210,7 @@ function renderAyFicha(){
   const n=sel.length;
   $('detalleBody').innerHTML = `
     <h3>👷 ${esc(ayNom)}</h3>
-    <div class="hint" style="margin:-10px 0 12px">Siembra y fertilización US$${dec(base)}/ha · fumigación y cebo US$${dec(base/2)}/ha</div>
+    <div class="hint" style="margin:-10px 0 12px">Siembra y fertilización US$${dec(base)}/ha${' · más de '+dec(params().ayAltaKg)+' kg/ha US$'+dec(params().ayAlta)+'/ha'} · fumigación y cebo US$${dec(base/2)}/ha</div>
     ${ts.length?`<div class="row mb">
       <button class="chip sm" style="justify-content:center" onclick="ayTodos(true)">Marcar todos</button>
       <button class="chip sm" style="justify-content:center" onclick="ayTodos(false)">Ninguno</button></div>`:''}
@@ -2210,7 +2221,7 @@ function renderAyFicha(){
         <div class="l"><div class="t1">${fechaCorta(t.fecha)} · ${esc(t.tipo)}</div>
           <div class="t2">${esc(campoDe(t))}</div></div>
         <div class="r"><div class="amt">US$${fmt(pagoAyDe(t),2)}</div>
-          <div class="dt">${fmtHa(t.ha)} ha × ${dec(tarifaAyudante(t.ay,t.tipo))}</div></div></div>`;
+          <div class="dt">${fmtHa(t.ha)} ha × ${dec(tarifaAyTrabajo(t))}${esDosisAlta(t)?' · '+dec(dosisDe(t))+' kg/ha':''}</div></div></div>`;
     }).join('') || '<div class="empty" style="padding:24px">No le debés nada 👍</div>'}
     ${ts.length?`<div class="kv big"><span class="k">${n} trabajo${n===1?'':'s'} · ${fmtHa(haSel)} ha</span>
       <span class="v">US$${fmt(suma,2)}</span></div>
@@ -2290,7 +2301,7 @@ function ayPesosTC(v){
 function liqAy(){
   const ts=trabajosAy(ayNom,false).filter(t=>aySel.has(t.id));
   const rows=ts.map(t=>({fecha:t.fecha.split('-').reverse().join('/'), tipo:t.tipo, campo:campoDe(t),
-    ha:t.ha, tar:tarifaAyudante(t.ay,t.tipo), monto:pagoAyDe(t)}));
+    ha:t.ha, tar:tarifaAyTrabajo(t), monto:pagoAyDe(t)}));
   return { nombre:ayNom, rows, totHa:ts.reduce((a,t)=>a+t.ha,0), tot:ts.reduce((a,t)=>a+pagoAyDe(t),0),
     desde: rows.length?rows[0].fecha:'', hasta: rows.length?rows[rows.length-1].fecha:'',
     base: tarifaBaseAy(ayNom), pesos: pesosLiq(ts) };
@@ -2319,7 +2330,7 @@ function exportarAyPDF(){
     <td class="n">${fmtHa(r.ha)}</td><td class="n">${dec(r.tar)}</td><td class="n">US$ ${fmt(r.monto,2)}</td></tr>`).join('')}</tbody>
   <tfoot><tr><td colspan="3">Total · ${L.rows.length} trabajo${L.rows.length===1?'':'s'}</td><td class="n">${fmtHa(L.totHa)}</td><td></td><td class="n">US$ ${fmt(L.tot,2)}</td></tr>${L.pesos?`
   <tr class="pesos"><td colspan="5">Total en pesos (dólar a $${dec(L.pesos.tc)})</td><td class="n">$ ${fmt(L.pesos.monto,0)}</td></tr>`:''}</tfoot></table>
-  <div class="nota">Siembra y fertilización US$${dec(L.base)}/ha · fumigación y cebo US$${dec(L.base/2)}/ha</div>
+  <div class="nota">Siembra y fertilización US$${dec(L.base)}/ha${' · más de '+dec(params().ayAltaKg)+' kg/ha US$'+dec(params().ayAlta)+'/ha'} · fumigación y cebo US$${dec(L.base/2)}/ha</div>
   </body></html>`;
   abrirVisor(html, 'Liquidacion '+L.nombre+' '+hoyISO(), false);
 }
@@ -2367,7 +2378,7 @@ function imagenAy(){
     x.fillText('$ '+fmt(L.pesos.monto,0), cM, y); x.textAlign='left';
   }
   x.fillStyle='#777'; x.font=`400 24px ${F}`;
-  x.fillText(`Siembra y fertilización US$${dec(L.base)}/ha · fumigación y cebo US$${dec(L.base/2)}/ha`, pad, y+56);
+  x.fillText(`Siembra y fert. US$${dec(L.base)}/ha${' · más de '+dec(params().ayAltaKg)+' kg/ha US$'+dec(params().ayAlta)+'/ha'} · fumig. y cebo US$${dec(L.base/2)}/ha`, pad, y+56);
   return c;
 }
 function compartirAyImagen(){
@@ -3036,7 +3047,8 @@ function renderNum(){
 // hectárea, el pago a ayudantes sale de los trabajos, y tu sueldo pretendido se suma
 // aparte para ver si el negocio te paga tu tiempo. Uso propio (Dubach) se valoriza al costo.
 function paramDef(){
-  return { alquilerHa:1.5, margen:35, tarifas:{}, tarifaAyDef:1.5, costoKm:0.28, targetHora:200,
+  return { alquilerHa:1.5, margen:35, tarifas:{}, tarifaAyDef:1.5, ayAlta:2, ayAltaKg:80, ayAltaDesde:'2026-11-16',
+           costoKm:0.28, targetHora:200,
            sueldoAnio:0, fijosMes:0, propios:'Dubach', clientesOT:'Nalmer, Cina Cina', clientesFactura:'Nalmer, Cina Cina, Ingral, Marvin', drones:'P150, P60', tanqueMez:300,
            alqDron:{P60:0.8}, parte2:33 };
 }
@@ -3045,7 +3057,7 @@ function params(){
   const p=S.param, d=paramDef();
   if(p.alquilerHa===undefined) p.alquilerHa = 1.5;   // migración desde amortización
   if(!p.tarifas) p.tarifas = {};
-  ['tarifaAyDef','costoKm','targetHora','sueldoAnio','fijosMes','propios','clientesOT','clientesFactura','drones','tanqueMez','alqDron','parte2'].forEach(k=>{
+  ['tarifaAyDef','ayAlta','ayAltaKg','ayAltaDesde','costoKm','targetHora','sueldoAnio','fijosMes','propios','clientesOT','clientesFactura','drones','tanqueMez','alqDron','parte2'].forEach(k=>{
     if(p[k]===undefined) p[k]=d[k];
   });
   return p;
@@ -3073,11 +3085,21 @@ function tarifaAyudante(nombre, tipo){
   const base = tarifaBaseAy(nombre);
   return TIPOS_PLENA.includes(tipo) ? base : base * 0.5;
 }
+// tarifa de un trabajo puntual: en siembra/fertilización con más de "ayAltaKg" kg/ha se paga "ayAlta"
+// (más kilos = más carga para el ayudante). Rige desde el 16/11/2026.
+function dosisDe(t){ return (t.prods && t.prods[0] && t.prods[0].d!=null) ? t.prods[0].d : null; }
+function esDosisAlta(t){
+  const p=params(), d=dosisDe(t);
+  return TIPOS_PLENA.includes(t.tipo) && d!=null && d>(p.ayAltaKg||80) && (t.fecha||'')>=(p.ayAltaDesde||'');
+}
+function tarifaAyTrabajo(t){
+  return esDosisAlta(t) ? (params().ayAlta||0) : tarifaAyudante(t.ay, t.tipo);
+}
 // lo que le toca al ayudante por un trabajo (si ya se pagó, queda fijo el monto pagado)
 function pagoAyDe(t){
   if(!t.ay || !t.ha) return 0;
   if(t.ayPagado && t.ayMonto!=null) return t.ayMonto;
-  return Math.round(tarifaAyudante(t.ay, t.tipo)*t.ha*100)/100;
+  return Math.round(tarifaAyTrabajo(t)*t.ha*100)/100;
 }
 function toggleParam(){
   const b=$('paramBox');
@@ -3109,6 +3131,7 @@ function cargarParamInputs(){
   $('pCostoKm').value=dec(p.costoKm);
   $('pTargetHora').value=dec(p.targetHora);
   $('pTarifaDef').value=dec(p.tarifaAyDef);
+  $('pAyAltaKg').value=dec(p.ayAltaKg); $('pAyAlta').value=dec(p.ayAlta);
   // una fila de tarifa por cada persona conocida
   $('pTarifas').innerHTML = S.personas.map(n=>
     `<div class="kv"><span class="k">${esc(n)}</span>
@@ -3146,6 +3169,8 @@ function guardarParam(){
   p.costoKm=num($('pCostoKm').value)||0;
   p.targetHora=num($('pTargetHora').value)||200;
   const td=num($('pTarifaDef').value); p.tarifaAyDef = td==null ? 0 : td;
+  const ak=num($('pAyAltaKg').value); if(ak!=null) p.ayAltaKg=ak;
+  const aa=num($('pAyAlta').value); if(aa!=null) p.ayAlta=aa;
   save(); renderCostos(); renderAyud();
 }
 // tabla de traslado por establecimiento: distancia editable, costo del viaje y piso de hectáreas
@@ -3216,7 +3241,7 @@ function modeloCostos(){
     marcaMes(mes);
     if(esPropio(t.cliente)) haPropAnio[a]=(haPropAnio[a]||0)+ha;      // uso propio: no se cobra
     else if(t.ha && t.precio){ ingAnio[a]=(ingAnio[a]||0)+t.ha*t.precio; haFactAnio[a]=(haFactAnio[a]||0)+t.ha; }
-    const tar = t.ay ? tarifaAyudante(t.ay, t.tipo) : 0;   // plena en siembra/fert, mitad en el resto
+    const tar = t.ay ? tarifaAyTrabajo(t) : 0;   // plena en siembra/fert, mitad en el resto
     if(tar && t.ha) ayudAnio[a]=(ayudAnio[a]||0)+tar*t.ha;
     alqAnio[a]=(alqAnio[a]||0)+ha*alquilerHaDe(t);     // según con qué drones se hizo
   });
